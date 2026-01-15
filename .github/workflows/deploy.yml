@@ -26,18 +26,24 @@ jobs:
         with:
           node-version: 20
           cache: 'npm'
+          # 如果您的 package-lock.json 也在子資料夾，建議加上這行，若無可忽略
+          cache-dependency-path: 'Classroom Tools/package-lock.json'
           
       - name: Install dependencies
-        # 修正重點：使用 npm install (它會自動產生 lock file)，不要用 npm ci
+        # 新增：指定工作目錄為您建立的資料夾
+        working-directory: 'Classroom Tools'
         run: npm install
         
       - name: Build
+        # 新增：指定工作目錄為您建立的資料夾
+        working-directory: 'Classroom Tools'
         run: npm run build
         
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./dist
+          # 修正：指定編譯後的檔案路徑 (位於子資料夾內的 dist)
+          path: 'Classroom Tools/dist'
 
   deploy:
     environment:
