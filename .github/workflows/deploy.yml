@@ -28,6 +28,7 @@ jobs:
           cache: 'npm'
           
       - name: Install dependencies
+        # 修正重點：使用 npm install (它會自動產生 lock file)，不要用 npm ci
         run: npm install
         
       - name: Build
