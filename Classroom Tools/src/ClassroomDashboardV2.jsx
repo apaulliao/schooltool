@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Settings, Clock, MapPin, Coffee, BookOpen, Volume2, Edit3, X, Save, RefreshCw, Bell, Wrench, Calendar, Sun, Sunset, ChevronDown, ChevronRight, Moon, Star, Download, Upload, Monitor, Maximize, Minimize, Plus, Trash2, AlertCircle, BedDouble, Box, Play, Pause, RotateCcw, Shuffle, Megaphone } from 'lucide-react';
+import { Settings, Clock, MapPin, Coffee, BookOpen, Volume2, Edit3, X, Save, RefreshCw, Bell, Wrench, Calendar, Sun, Sunset, ChevronDown, ChevronRight, Moon, Star, Download, Upload, Monitor, Maximize, Minimize, Plus, Trash2, AlertCircle, BedDouble, Box, Play, Pause, RotateCcw, Shuffle, Megaphone, Home } from 'lucide-react';
 
 // --- 預設資料 ---
 const DEFAULT_TIME_SLOTS = [
@@ -22,6 +22,7 @@ const DEFAULT_TIME_SLOTS = [
   { id: 'p6', name: '第六節', start: '14:10', end: '14:50', type: 'class' },
   { id: 'cleaning', name: '打掃時間', start: '14:50', end: '15:10', type: 'break' },
   { id: 'p7', name: '第七節', start: '15:10', end: '15:50', type: 'class' },
+  // 修改：放學時間調整為 15:50 - 16:10
   { id: 'after', name: '放學', start: '15:50', end: '16:10', type: 'break' },
 ];
 
@@ -67,7 +68,8 @@ const DEFAULT_SUBJECT_HINTS = {
   '有品麗山幸福悅讀': '準備喜歡的書，靜心閱讀',
   '理財悠遊趣': '準備理財學習單或相關教具',
   '閱讀': '攜帶借閱證，安靜排隊至圖書館',
-  'default': '準備下節課本，喝水上廁所'
+  'default': '準備下節課本，喝水上廁所',
+  '放學': '請收拾好書包，拿好餐袋及個人物品到走廊排隊'
 };
 
 const DEFAULT_SPECIAL_BUTTONS = [
@@ -1105,7 +1107,8 @@ const App = () => {
   }, [timeSlots, dayTypes, now.getDay()]);
 
   const isNapTime = currentSlot?.name.includes('午休') || currentSlot?.id === 'nap';
-  const isAutoNapActive = isNapTime && !dismissedNap && statusMode === 'break';
+  const isDismissal = currentSlot?.name.includes('放學') || currentSlot?.id === 'after';
+  const isAutoNapActive = (isNapTime || isDismissal) && !dismissedNap && statusMode === 'break';
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -1240,7 +1243,7 @@ const App = () => {
     if (currentSlot && (currentSlot.name.includes('打掃') || currentSlot.id === 'cleaning')) {
        return subjectHints['全天打掃'] || subjectHints['打掃時間'] || '請拿起掃具，認真打掃環境，保持整潔';
     }
-    if (currentSlot && (currentSlot.name.includes('午餐') || currentSlot.name.includes('午休'))) {
+    if (currentSlot && (currentSlot.name.includes('午餐') || currentSlot.name.includes('午休') || currentSlot.name.includes('放學'))) {
        return subjectHints[currentSlot.name] || '請保持安靜';
     }
     const subject = getNextSubjectName();
@@ -1265,17 +1268,22 @@ const App = () => {
   const BreakView = () => {
     const isPreBell = statusMode === 'pre-bell';
     const isNap = currentSlot?.name.includes('午休'); 
-    const progressColor = isNap ? 'text-indigo-400' : (isPreBell ? 'text-red-500' : (progress > 50 ? 'text-emerald-500' : 'text-amber-400'));
+    const isDismissal = currentSlot?.name.includes('放學');
+    const progressColor = (isNap || isDismissal) ? 'text-indigo-400' : (isPreBell ? 'text-red-500' : (progress > 50 ? 'text-emerald-500' : 'text-amber-400'));
     const isCleaning = currentSlot && (currentSlot.name.includes('打掃') || currentSlot.id === 'cleaning');
     const isLunch = currentSlot && currentSlot.name.includes('午餐');
     
-    // 自動排程的午休模式：如果沒有被手動關閉，顯示全螢幕覆蓋
-    if (isNap && !dismissedNap) {
+    // 自動排程的午休或放學模式：如果沒有被手動關閉，顯示全螢幕覆蓋
+    if ((isNap || isDismissal) && !dismissedNap) {
+      const title = isNap ? "午休時間" : "放學時間";
+      const subtext = isNap ? "Shhh... 請保持安靜，好好休息" : "請收拾書包，準備回家";
+      const icon = isNap ? Moon : Home;
+
       return (
         <QuietModeView 
-          title="午休時間"
-          subtext="Shhh... 請保持安靜，好好休息"
-          icon={Moon}
+          title={title}
+          subtext={subtext}
+          icon={icon}
           onClose={() => setDismissedNap(true)} // 點擊關閉，暫時解除全螢幕，回到主畫面
           centerContent={
              <div className="flex flex-col items-center">
@@ -1283,7 +1291,7 @@ const App = () => {
                     {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: !is24Hour })}
                  </div>
                  <div className="mt-8 bg-white/10 backdrop-blur-md px-8 py-4 rounded-full border border-white/10 text-indigo-200">
-                     <span className="mr-4">💤</span>{getSystemHint()}
+                     <span className="mr-4">{isNap ? '💤' : '🏠'}</span>{getSystemHint()}
                  </div>
              </div>
           }
@@ -1299,10 +1307,10 @@ const App = () => {
           <div className="flex justify-between items-start p-8">
             <div className="bg-white/60 backdrop-blur-sm px-6 py-3 rounded-2xl shadow-sm border border-white/50">
               <span className="text-slate-500 font-bold mr-2">
-                {isCleaning ? '目前時段' : (isLunch ? '目前時段' : (isNap ? '目前時段' : '下一節準備'))}
+                {isCleaning ? '目前時段' : (isLunch ? '目前時段' : (isNap ? '目前時段' : (isDismissal ? '目前時段' : '下一節準備')))}
               </span>
               <span className="text-2xl font-bold text-slate-800">
-                {isLunch ? '午餐時間' : (isNap ? '午休時間' : getNextSubjectName())}
+                {isLunch ? '午餐時間' : (isNap ? '午休時間' : (isDismissal ? '放學時間' : getNextSubjectName()))}
               </span>
             </div>
             {timeOffset !== 0 && <div className="bg-red-100 text-red-600 px-4 py-2 rounded-full text-sm font-bold animate-pulse border border-red-200">⚠️ 時間模擬模式中</div>}
@@ -1335,7 +1343,7 @@ const App = () => {
                 <div className="flex items-center gap-4 mb-4">
                   <div className="p-3 bg-blue-100 rounded-2xl text-blue-600"><BookOpen size={32} /></div>
                   <div className="text-lg text-slate-500 font-bold">
-                    {isCleaning ? '打掃提醒' : (isLunch ? '用餐提醒' : (isNap ? '午休提醒' : '請準備'))}
+                    {isCleaning ? '打掃提醒' : (isLunch ? '用餐提醒' : (isNap ? '午休提醒' : (isDismissal ? '放學提醒' : '請準備')))}
                   </div>
                 </div>
                 <div className="text-3xl font-bold text-slate-800 leading-normal">{getSystemHint()}</div>
@@ -1529,4 +1537,3 @@ const App = () => {
 };
 
 export default App;
-
