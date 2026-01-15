@@ -225,6 +225,7 @@ const ToolsModal = ({ isOpen, onClose }) => {
                  <button onClick={() => startTimer(10)} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700 font-bold">10分鐘</button>
                </div>
 
+                {/* 自訂時間 */}
                <div className="flex gap-2 mb-8 items-center bg-slate-50 p-2 rounded-xl border border-slate-100 shadow-sm">
                   <span className="text-slate-500 font-bold text-sm pl-2">自訂：</span>
                   <input 
@@ -303,7 +304,7 @@ const ToolsModal = ({ isOpen, onClose }) => {
   );
 };
 
-// --- 廣播輸入 Modal ---
+// --- 廣播輸入 Modal (記憶功能) ---
 const BroadcastInputModal = ({ isOpen, onClose, onConfirm }) => {
   const [title, setTitle] = useState(() => localStorage.getItem('lastBroadcastTitle') || '');
   const [sub, setSub] = useState(() => localStorage.getItem('lastBroadcastSub') || '');
@@ -366,9 +367,7 @@ const BroadcastInputModal = ({ isOpen, onClose, onConfirm }) => {
   );
 };
 
-// ... SettingsModal, CircularProgress, MessageInput, ControlDock (這些保持不變，但需要與 App 一起呈現)
-// 注意：以下組件代碼需要完整保留，因為我需要提供一個完整的檔案
-
+// ... SettingsModal ... (需修改 Reset 邏輯)
 const SettingsModal = ({ 
   isOpen, onClose, 
   timeSlots, setTimeSlots, 
@@ -378,7 +377,8 @@ const SettingsModal = ({
   timeOffset, setTimeOffset,
   setIsManualEco,
   setIsAutoEcoOverride, 
-  is24Hour, setIs24Hour
+  is24Hour, setIs24Hour,
+  setSpecialButtons // 接收 setSpecialButtons
 }) => {
   const [expandedSections, setExpandedSections] = useState({});
   const [newSubjectName, setNewSubjectName] = useState('');
@@ -525,6 +525,8 @@ const SettingsModal = ({
         </div>
         
         <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-50">
+          {/* ... (其他設定區塊省略，保持不變) ... */}
+          
           <SettingsSection 
             title="一般設定" 
             icon={Wrench} 
@@ -552,6 +554,8 @@ const SettingsModal = ({
              </div>
           </SettingsSection>
 
+          {/* ... (其他設定區塊) ... */}
+          
           <SettingsSection 
             title="全天/半天設定" 
             icon={Calendar} 
@@ -581,7 +585,10 @@ const SettingsModal = ({
                半天課模式：第五節後放學，大下課自動改為打掃時間。
              </p>
           </SettingsSection>
-
+          
+          {/* ... (其餘設定區塊保持不變，為節省空間，請參照上一版內容，但確保 <SettingsModal> 結構完整) ... */}
+          {/* 為確保完整性，我會將其他區塊簡化但保留結構 */}
+          
           <SettingsSection 
             title="課表設定 (使用已建立的科目)" 
             icon={BookOpen} 
@@ -589,15 +596,14 @@ const SettingsModal = ({
             onToggle={() => toggleSection('schedule')}
             colorClass="text-blue-600"
           >
-            <div className="mb-4 bg-blue-50 border border-blue-100 p-3 rounded-xl flex items-start gap-2 text-sm text-blue-700">
+              <div className="mb-4 bg-blue-50 border border-blue-100 p-3 rounded-xl flex items-start gap-2 text-sm text-blue-700">
               <AlertCircle size={18} className="shrink-0 mt-0.5" />
               <div>
                 <span className="font-bold">操作提示：</span>
                 請使用下拉選單選擇科目。若選單中沒有您要的科目，請先至下方的「科目提示詞與管理」新增該科目。
               </div>
             </div>
-
-            <div className="grid grid-cols-6 gap-2 text-sm text-center mb-2 font-bold bg-slate-100 p-3 rounded-xl text-slate-600">
+             <div className="grid grid-cols-6 gap-2 text-sm text-center mb-2 font-bold bg-slate-100 p-3 rounded-xl text-slate-600">
               <div>節次</div>
               {Object.keys(schedule).map(day => <div key={day}>週{WEEKDAYS[day]}</div>)}
             </div>
@@ -637,7 +643,7 @@ const SettingsModal = ({
             onToggle={() => toggleSection('hints')}
             colorClass="text-emerald-600"
           >
-             <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-xl mb-6 flex gap-3 items-center">
+              <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-xl mb-6 flex gap-3 items-center">
                 <div className="font-bold text-emerald-800 whitespace-nowrap">新增科目：</div>
                 <input 
                   value={newSubjectName}
@@ -653,8 +659,7 @@ const SettingsModal = ({
                   <Plus size={18} /> 新增
                 </button>
              </div>
-
-            <div className="grid grid-cols-1 gap-3">
+             <div className="grid grid-cols-1 gap-3">
               <div className="grid grid-cols-12 gap-2 text-xs font-bold text-slate-400 px-2 uppercase tracking-wider">
                 <div className="col-span-3">科目名稱 (可編輯)</div>
                 <div className="col-span-8">準備事項 / 提醒詞</div>
@@ -709,7 +714,7 @@ const SettingsModal = ({
               💡 提示：直接點擊「科目名稱」即可修改。修改後，課表中的相關課程會自動更新名稱。
             </p>
           </SettingsSection>
-
+          
           <SettingsSection 
             title="系統維護 (備份/還原/測試)" 
             icon={Save} 
@@ -717,7 +722,7 @@ const SettingsModal = ({
             onToggle={() => toggleSection('maintenance')}
             colorClass="text-slate-500"
           >
-             <div className="space-y-6">
+            <div className="space-y-6">
                 <div className="bg-slate-100 p-4 rounded-xl border border-slate-200">
                   <div className="flex flex-wrap items-center gap-4">
                      <span className="font-bold text-slate-700">模擬現在時間：</span>
@@ -782,6 +787,7 @@ const SettingsModal = ({
                  setIsManualEco(false);
                  setIsAutoEcoOverride(false);
                  setIs24Hour(true);
+                 setSpecialButtons(DEFAULT_SPECIAL_BUTTONS); // 加入了重置按鈕的邏輯
               }
             }}
             className="px-4 py-2 text-red-500 hover:bg-red-50 rounded-xl flex items-center gap-2 font-bold transition-colors"
@@ -1264,14 +1270,13 @@ const App = () => {
     const isCleaning = currentSlot && (currentSlot.name.includes('打掃') || currentSlot.id === 'cleaning');
     const isLunch = currentSlot && currentSlot.name.includes('午餐');
     
-    // 自動排程的午休模式：如果沒有被手動關閉，顯示全螢幕覆蓋
     if (isNap && !dismissedNap) {
       return (
         <QuietModeView 
           title="午休時間"
           subtext="Shhh... 請保持安靜，好好休息"
           icon={Moon}
-          onClose={() => setDismissedNap(true)} // 點擊關閉，暫時解除全螢幕，回到主畫面
+          onClose={() => setDismissedNap(true)} 
           centerContent={
              <div className="flex flex-col items-center">
                  <div className="text-8xl font-mono font-bold text-slate-200 drop-shadow-2xl">
@@ -1510,6 +1515,7 @@ const App = () => {
         setIsAutoEcoOverride={setIsAutoEcoOverride}
         is24Hour={is24Hour}
         setIs24Hour={setIs24Hour}
+        setSpecialButtons={setSpecialButtons} // 傳遞更新按鈕的 function
       />
       <ToolsModal isOpen={showTools} onClose={() => setShowTools(false)} />
       <BroadcastInputModal 
