@@ -1,0 +1,10 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 確保全螢幕背景色正確 */
+body {
+  background-color: #e2e8f0; /* bg-slate-200 */
+  margin: 0;
+  overflow: hidden; /* 防止捲軸出現 */
+}
