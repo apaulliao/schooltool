@@ -22,7 +22,7 @@ const DEFAULT_TIME_SLOTS = [
   { id: 'p6', name: '第六節', start: '14:10', end: '14:50', type: 'class' },
   { id: 'cleaning', name: '打掃時間', start: '14:50', end: '15:10', type: 'break' },
   { id: 'p7', name: '第七節', start: '15:10', end: '15:50', type: 'class' },
-  { id: 'after', name: '放學', start: '15:50', end: '17:00', type: 'break' },
+  { id: 'after', name: '放學', start: '15:50', end: '16:10', type: 'break' },
 ];
 
 const DEFAULT_SCHEDULE = {
@@ -1529,3 +1529,4 @@ const App = () => {
 };
 
 export default App;
+
