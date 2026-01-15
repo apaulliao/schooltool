@@ -77,7 +77,7 @@ const DEFAULT_SPECIAL_BUTTONS = [
   { id: 4, label: '電腦教室', message: '全班在電腦教室', sub: '資訊課程', color: 'from-indigo-500 to-blue-500' },
   { id: 5, label: '晨間閱讀', message: '晨間閱讀', sub: '請安靜閱讀', color: 'from-amber-900 to-orange-950', type: 'dark', icon: 'book' },
   { id: 6, label: '午休', message: '午休時間', sub: '請趴下休息', color: 'from-indigo-950 to-slate-900', type: 'dark', icon: 'moon' },
-  { id: 99, label: '自訂廣播', message: '', sub: '', color: 'from-pink-500 to-rose-500', type: 'input', icon: 'megaphone' },
+  { id: 99, label: '自訂', message: '', sub: '', color: 'from-pink-500 to-rose-500', type: 'input', icon: 'megaphone' },
 ];
 
 const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六'];
@@ -1529,3 +1529,4 @@ const App = () => {
 };
 
 export default App;
+
