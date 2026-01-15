@@ -143,7 +143,7 @@ const ToolsModal = ({ isOpen, onClose }) => {
   // Timer State
   const [timeLeft, setTimeLeft] = useState(0);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
-  const [customMinutes, setCustomMinutes] = useState(''); // 新增：自訂時間狀態
+  const [customMinutes, setCustomMinutes] = useState(''); // 自訂時間狀態
   
   // Random Picker State
   const [studentCount, setStudentCount] = useState(30);
@@ -168,7 +168,7 @@ const ToolsModal = ({ isOpen, onClose }) => {
   };
 
   const startTimer = (mins) => {
-    setTimeLeft(Math.floor(mins * 60)); // 修正：確保轉為整數秒
+    setTimeLeft(Math.floor(mins * 60));
     setIsTimerRunning(true);
   };
 
@@ -228,7 +228,7 @@ const ToolsModal = ({ isOpen, onClose }) => {
                  <button onClick={() => startTimer(10)} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700 font-bold">10分鐘</button>
                </div>
 
-               {/* 新增：自訂時間輸入區 */}
+                {/* 自訂時間 */}
                <div className="flex gap-2 mb-8 items-center bg-slate-50 p-2 rounded-xl border border-slate-100 shadow-sm">
                   <span className="text-slate-500 font-bold text-sm pl-2">自訂：</span>
                   <input 
@@ -303,502 +303,6 @@ const ToolsModal = ({ isOpen, onClose }) => {
           )}
         </div>
       </div>
-    </div>
-  );
-};
-
-// ... SettingsModal ...
-const SettingsModal = ({ 
-  isOpen, onClose, 
-  timeSlots, setTimeSlots, 
-  schedule, setSchedule, 
-  subjectHints, setSubjectHints,
-  dayTypes, setDayTypes, 
-  timeOffset, setTimeOffset,
-  setIsManualEco,
-  setIsAutoEcoOverride, 
-  is24Hour, setIs24Hour
-}) => {
-  const [expandedSections, setExpandedSections] = useState({});
-  const [newSubjectName, setNewSubjectName] = useState('');
-  const fileInputRef = useRef(null);
-
-  if (!isOpen) return null;
-
-  const toggleSection = (section) => {
-    setExpandedSections(prev => ({
-      ...prev,
-      [section]: !prev[section]
-    }));
-  };
-
-  const handleTimeChange = (e) => {
-    setIsManualEco(false);
-    setIsAutoEcoOverride(true);
-    
-    const [h, m] = e.target.value.split(':').map(Number);
-    const nowReal = new Date();
-    const targetDate = new Date(nowReal);
-    targetDate.setHours(h);
-    targetDate.setMinutes(m);
-    targetDate.setSeconds(0);
-    const offset = targetDate.getTime() - nowReal.getTime();
-    setTimeOffset(offset);
-  };
-
-  const handleAddSubject = () => {
-    if (!newSubjectName.trim()) return;
-    if (subjectHints[newSubjectName.trim()]) {
-      alert('該科目已存在！');
-      return;
-    }
-    setSubjectHints(prev => ({
-      ...prev,
-      [newSubjectName.trim()]: '請設定準備事項...'
-    }));
-    setNewSubjectName('');
-  };
-
-  const handleDeleteSubject = (subject) => {
-    if (subject === 'default') {
-      alert('預設科目無法刪除');
-      return;
-    }
-    if (confirm(`確定要刪除「${subject}」嗎？這將會從您的科目列表中移除，且無法復原。`)) {
-       const newHints = { ...subjectHints };
-       delete newHints[subject];
-       setSubjectHints(newHints);
-       
-       const newSchedule = { ...schedule };
-       Object.keys(newSchedule).forEach(day => {
-         Object.keys(newSchedule[day]).forEach(period => {
-           if (newSchedule[day][period] === subject) {
-             newSchedule[day][period] = '';
-           }
-         });
-       });
-       setSchedule(newSchedule);
-    }
-  };
-
-  const handleRenameSubject = (oldName, newName) => {
-    const trimmedNew = newName.trim();
-    if (oldName === trimmedNew || !trimmedNew) return;
-    
-    if (subjectHints[trimmedNew]) {
-      alert(`科目「${trimmedNew}」已存在，無法重新命名。`);
-      return;
-    }
-
-    const newHints = { ...subjectHints };
-    newHints[trimmedNew] = newHints[oldName];
-    delete newHints[oldName];
-    setSubjectHints(newHints);
-
-    const newSchedule = { ...schedule };
-    Object.keys(newSchedule).forEach(day => {
-      Object.keys(newSchedule[day]).forEach(period => {
-        if (newSchedule[day][period] === oldName) {
-          newSchedule[day][period] = trimmedNew;
-        }
-      });
-    });
-    setSchedule(newSchedule);
-  };
-
-  const handleExport = () => {
-    const data = {
-      version: '2.0',
-      timestamp: new Date().toISOString(),
-      config: {
-        timeSlots,
-        schedule,
-        subjectHints,
-        dayTypes,
-        is24Hour
-      }
-    };
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `Classroom_Config_${new Date().toLocaleDateString()}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const handleImport = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const data = JSON.parse(event.target.result);
-        if (data.config) {
-          if (confirm('確定要從檔案還原設定嗎？目前的設定將被覆蓋。')) {
-            if(data.config.timeSlots) setTimeSlots(data.config.timeSlots);
-            if(data.config.schedule) setSchedule(data.config.schedule);
-            if(data.config.subjectHints) setSubjectHints(data.config.subjectHints);
-            if(data.config.dayTypes) setDayTypes(data.config.dayTypes);
-            if(data.config.is24Hour !== undefined) setIs24Hour(data.config.is24Hour);
-            alert('設定還原成功！');
-          }
-        } else {
-          alert('無效的設定檔格式。');
-        }
-      } catch (err) {
-        alert('讀取檔案失敗，請確認檔案格式正確。');
-      }
-    };
-    reader.readAsText(file);
-    e.target.value = ''; 
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[999] flex items-center justify-center p-4" onClick={(e) => e.stopPropagation()}>
-      <div className="bg-white w-full max-w-5xl h-[90vh] rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-        <div className="p-6 bg-slate-800 text-white flex justify-between items-center shrink-0">
-          <h2 className="text-2xl font-bold flex items-center gap-3"><Settings /> 設定控制台</h2>
-          <button onClick={onClose} className="p-2 hover:bg-slate-700 rounded-full"><X /></button>
-        </div>
-        
-        <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-50">
-          <SettingsSection 
-            title="一般設定" 
-            icon={Wrench} 
-            isOpen={expandedSections['general']} 
-            onToggle={() => toggleSection('general')}
-          >
-             <div className="flex flex-col gap-6">
-               <div className="flex items-center gap-4">
-                  <span className="font-bold text-slate-700 w-24">時間格式：</span>
-                  <div className="flex bg-slate-100 rounded-lg p-1 border border-slate-200">
-                     <button 
-                       onClick={() => setIs24Hour(false)}
-                       className={`px-4 py-2 rounded-md text-sm font-bold transition-all ${!is24Hour ? 'bg-blue-600 text-white shadow' : 'text-slate-500 hover:bg-slate-200'}`}
-                     >
-                       12H (下午 1:00)
-                     </button>
-                     <button 
-                       onClick={() => setIs24Hour(true)}
-                       className={`px-4 py-2 rounded-md text-sm font-bold transition-all ${is24Hour ? 'bg-blue-600 text-white shadow' : 'text-slate-500 hover:bg-slate-200'}`}
-                     >
-                       24H (13:00)
-                     </button>
-                  </div>
-               </div>
-             </div>
-          </SettingsSection>
-
-          <SettingsSection 
-            title="全天/半天設定" 
-            icon={Calendar} 
-            isOpen={expandedSections['dayTypes']} 
-            onToggle={() => toggleSection('dayTypes')}
-            colorClass="text-orange-600"
-          >
-             <div className="bg-orange-50 p-4 rounded-xl grid grid-cols-5 gap-3 border border-orange-100">
-                {[1,2,3,4,5].map(day => (
-                  <div key={day} className="flex flex-col items-center">
-                    <span className="text-xs font-bold text-slate-500 mb-2">週{WEEKDAYS[day]}</span>
-                    <button
-                      onClick={() => setDayTypes(prev => ({...prev, [day]: prev[day] === 'full' ? 'half' : 'full'}))}
-                      className={`w-full py-3 rounded-lg text-sm font-bold transition-all border shadow-sm ${
-                        dayTypes[day] === 'full' 
-                          ? 'bg-blue-500 border-blue-600 text-white hover:bg-blue-600' 
-                          : 'bg-yellow-400 border-yellow-500 text-yellow-900 hover:bg-yellow-500'
-                      }`}
-                    >
-                      {dayTypes[day] === 'full' ? '全天課' : '半天課'}
-                    </button>
-                  </div>
-                ))}
-             </div>
-             <p className="text-sm text-slate-500 mt-3 flex items-center gap-2">
-               <span className="w-2 h-2 rounded-full bg-yellow-400 inline-block"></span>
-               半天課模式：第五節後放學，大下課自動改為打掃時間。
-             </p>
-          </SettingsSection>
-
-          <SettingsSection 
-            title="課表設定 (使用已建立的科目)" 
-            icon={BookOpen} 
-            isOpen={expandedSections['schedule']} 
-            onToggle={() => toggleSection('schedule')}
-            colorClass="text-blue-600"
-          >
-            <div className="mb-4 bg-blue-50 border border-blue-100 p-3 rounded-xl flex items-start gap-2 text-sm text-blue-700">
-              <AlertCircle size={18} className="shrink-0 mt-0.5" />
-              <div>
-                <span className="font-bold">操作提示：</span>
-                請使用下拉選單選擇科目。若選單中沒有您要的科目，請先至下方的「科目提示詞與管理」新增該科目。
-              </div>
-            </div>
-
-            <div className="grid grid-cols-6 gap-2 text-sm text-center mb-2 font-bold bg-slate-100 p-3 rounded-xl text-slate-600">
-              <div>節次</div>
-              {Object.keys(schedule).map(day => <div key={day}>週{WEEKDAYS[day]}</div>)}
-            </div>
-            {timeSlots.filter(s => s.type === 'class').map(slot => (
-              <div key={slot.id} className="grid grid-cols-6 gap-2 mb-2">
-                <div className="flex items-center justify-center font-bold text-slate-600 bg-slate-50 border border-slate-200 rounded-lg text-sm">
-                  {slot.name}
-                </div>
-                {Object.keys(schedule).map(day => (
-                  <select
-                    key={`${day}-${slot.id}`}
-                    value={schedule[day][slot.id] || ''}
-                    onChange={(e) => {
-                      const newSchedule = { ...schedule };
-                      newSchedule[day] = { ...newSchedule[day], [slot.id]: e.target.value };
-                      setSchedule(newSchedule);
-                    }}
-                    className={`border rounded-lg p-2 text-center text-sm focus:ring-2 focus:ring-blue-400 outline-none hover:bg-white transition-colors appearance-none cursor-pointer
-                      ${dayTypes[day] === 'half' && getSecondsFromTime(slot.start) >= getSecondsFromTime('13:20') ? 'opacity-30 bg-slate-100 cursor-not-allowed' : 'bg-white'}
-                    `}
-                    disabled={dayTypes[day] === 'half' && getSecondsFromTime(slot.start) >= getSecondsFromTime('13:20')}
-                  >
-                    <option value="">(空堂)</option>
-                    {Object.keys(subjectHints).filter(k => k !== 'default').map(subject => (
-                      <option key={subject} value={subject}>{subject}</option>
-                    ))}
-                  </select>
-                ))}
-              </div>
-            ))}
-          </SettingsSection>
-
-          <SettingsSection 
-            title="科目提示詞與管理" 
-            icon={Coffee} 
-            isOpen={expandedSections['hints']} 
-            onToggle={() => toggleSection('hints')}
-            colorClass="text-emerald-600"
-          >
-             <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-xl mb-6 flex gap-3 items-center">
-                <div className="font-bold text-emerald-800 whitespace-nowrap">新增科目：</div>
-                <input 
-                  value={newSubjectName}
-                  onChange={(e) => setNewSubjectName(e.target.value)}
-                  placeholder="輸入新科目名稱 (例如: 程式設計)"
-                  className="flex-1 p-2 border border-emerald-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400"
-                  onKeyDown={(e) => e.key === 'Enter' && handleAddSubject()}
-                />
-                <button 
-                  onClick={handleAddSubject}
-                  className="bg-emerald-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-emerald-700 transition-colors flex items-center gap-1"
-                >
-                  <Plus size={18} /> 新增
-                </button>
-             </div>
-
-            <div className="grid grid-cols-1 gap-3">
-              <div className="grid grid-cols-12 gap-2 text-xs font-bold text-slate-400 px-2 uppercase tracking-wider">
-                <div className="col-span-3">科目名稱 (可編輯)</div>
-                <div className="col-span-8">準備事項 / 提醒詞</div>
-                <div className="col-span-1 text-center">刪除</div>
-              </div>
-              
-              {Object.keys(subjectHints).map(subject => (
-                <div key={subject} className="grid grid-cols-12 gap-2 items-center bg-white p-2 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow group">
-                  <div className="col-span-3 relative">
-                     {subject === 'default' ? (
-                       <div className="px-3 py-2 font-bold text-slate-500 bg-slate-100 rounded-lg text-sm border border-transparent">預設 (通用)</div>
-                     ) : (
-                       <input 
-                        defaultValue={subject}
-                        onBlur={(e) => handleRenameSubject(subject, e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.target.blur();
-                          }
-                        }}
-                        className="w-full px-3 py-2 font-bold text-slate-700 bg-transparent border border-transparent hover:border-slate-300 focus:border-blue-500 focus:bg-blue-50 rounded-lg text-sm outline-none transition-all"
-                        title="點擊編輯科目名稱"
-                       />
-                     )}
-                     {subject !== 'default' && <Edit3 size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-300 opacity-0 group-hover:opacity-100 pointer-events-none" />}
-                  </div>
-
-                  <div className="col-span-8">
-                    <input 
-                      value={subjectHints[subject]}
-                      onChange={(e) => setSubjectHints({...subjectHints, [subject]: e.target.value})}
-                      className="w-full border-b border-slate-200 focus:border-emerald-500 outline-none px-2 py-1 text-sm bg-transparent"
-                      placeholder="請輸入準備事項..."
-                    />
-                  </div>
-                  
-                  <div className="col-span-1 flex justify-center">
-                    {subject !== 'default' && (
-                      <button 
-                        onClick={() => handleDeleteSubject(subject)}
-                        className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                        title="刪除此科目"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-            <p className="text-xs text-slate-400 mt-4 text-center">
-              💡 提示：直接點擊「科目名稱」即可修改。修改後，課表中的相關課程會自動更新名稱。
-            </p>
-          </SettingsSection>
-
-          <SettingsSection 
-            title="系統維護 (備份/還原/測試)" 
-            icon={Save} 
-            isOpen={expandedSections['maintenance']} 
-            onToggle={() => toggleSection('maintenance')}
-            colorClass="text-slate-500"
-          >
-             <div className="space-y-6">
-                <div className="bg-slate-100 p-4 rounded-xl border border-slate-200">
-                  <div className="flex flex-wrap items-center gap-4">
-                     <span className="font-bold text-slate-700">模擬現在時間：</span>
-                     <input 
-                       type="time" 
-                       onChange={handleTimeChange}
-                       className="p-2 rounded border border-slate-300"
-                     />
-                     <button 
-                       onClick={() => {
-                         setTimeOffset(0);
-                         setIsManualEco(false);
-                         setIsAutoEcoOverride(true);
-                       }}
-                       className="px-4 py-2 bg-slate-600 text-white rounded hover:bg-slate-700 text-sm font-bold shadow-sm"
-                     >
-                       重置為現在
-                     </button>
-                     <span className="text-xs text-slate-400 font-mono">
-                       (Offset: {timeOffset}ms)
-                     </span>
-                  </div>
-                  <p className="text-sm text-slate-500 mt-2">
-                    調整此時間可立即預覽不同時段的介面效果。
-                  </p>
-               </div>
-
-               <div className="flex flex-wrap gap-4">
-                  <button 
-                    onClick={handleExport}
-                    className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-green-50 text-green-700 border border-green-200 rounded-xl hover:bg-green-100 transition-colors font-bold shadow-sm"
-                  >
-                    <Download size={20} /> 匯出設定檔 (備份)
-                  </button>
-                  <button 
-                    onClick={() => fileInputRef.current.click()}
-                    className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-blue-50 text-blue-700 border border-blue-200 rounded-xl hover:bg-blue-100 transition-colors font-bold shadow-sm"
-                  >
-                    <Upload size={20} /> 匯入設定檔 (還原)
-                  </button>
-                  <input 
-                    type="file" 
-                    ref={fileInputRef} 
-                    onChange={handleImport} 
-                    className="hidden" 
-                    accept=".json"
-                  />
-               </div>
-             </div>
-          </SettingsSection>
-        </div>
-
-        <div className="p-4 border-t bg-white flex justify-end gap-3 shrink-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-          <button 
-            onClick={() => {
-              if(confirm('確定要重置所有設定回預設值嗎？')) {
-                 setTimeSlots(DEFAULT_TIME_SLOTS);
-                 setSchedule(DEFAULT_SCHEDULE);
-                 setSubjectHints(DEFAULT_SUBJECT_HINTS);
-                 setDayTypes(DEFAULT_DAY_TYPES);
-                 setTimeOffset(0);
-                 setIsManualEco(false);
-                 setIsAutoEcoOverride(false);
-                 setIs24Hour(true);
-              }
-            }}
-            className="px-4 py-2 text-red-500 hover:bg-red-50 rounded-xl flex items-center gap-2 font-bold transition-colors"
-          >
-            <RefreshCw size={18}/> 重置預設
-          </button>
-          <button 
-            onClick={onClose}
-            className="px-8 py-3 bg-slate-800 text-white rounded-xl hover:bg-slate-700 flex items-center gap-2 shadow-lg hover:shadow-xl transition-all font-bold"
-          >
-            <Save size={18} /> 完成設定
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ... CircularProgress ...
-const CircularProgress = ({ progress, size = 300, strokeWidth = 15, children, colorClass }) => {
-  const radius = (size - strokeWidth) / 2;
-  const circumference = radius * 2 * Math.PI;
-  const offset = circumference - (progress / 100) * circumference;
-
-  return (
-    <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
-      <svg className="transform -rotate-90 w-full h-full">
-        <circle
-          className="text-slate-200/30"
-          strokeWidth={strokeWidth}
-          stroke="currentColor"
-          fill="transparent"
-          r={radius}
-          cx={size / 2}
-          cy={size / 2}
-        />
-        <circle
-          className={`transition-all duration-1000 ease-linear ${colorClass}`}
-          strokeWidth={strokeWidth}
-          strokeDasharray={circumference}
-          strokeDashoffset={offset}
-          strokeLinecap="round"
-          stroke="currentColor"
-          fill="transparent"
-          r={radius}
-          cx={size / 2}
-          cy={size / 2}
-        />
-      </svg>
-      <div className="absolute inset-0 flex items-center justify-center flex-col">
-        {children}
-      </div>
-    </div>
-  );
-};
-
-// ... MessageInput ...
-const MessageInput = ({ isOpen, onClose, message, setMessage }) => {
-  if (!isOpen) return null;
-  return (
-    <div className="fixed inset-0 bg-black/40 z-[1000] flex items-center justify-center backdrop-blur-sm" onClick={(e) => e.stopPropagation()}>
-       <div className="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-2xl transform transition-all scale-100">
-          <h3 className="text-2xl font-bold mb-4 text-slate-700">新增臨時提醒</h3>
-          <input 
-             autoFocus
-             value={message}
-             onChange={e => setMessage(e.target.value)}
-             className="w-full text-3xl font-bold p-4 border-2 border-blue-100 rounded-xl focus:border-blue-500 focus:outline-none mb-6"
-             placeholder="例如：請將聯絡簿交到講桌"
-             onKeyDown={e => {
-               if (e.key === 'Enter') onClose();
-             }}
-          />
-          <div className="flex justify-end gap-3">
-             <button onClick={onClose} className="px-6 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-100">完成</button>
-             <button onClick={() => { setMessage(''); onClose(); }} className="px-6 py-3 rounded-xl font-bold text-red-500 hover:bg-red-50">清除</button>
-          </div>
-       </div>
     </div>
   );
 };
@@ -1093,13 +597,28 @@ const App = () => {
       (s.type === 'class' || ['morning', 'lunch', 'nap', 'cleaning'].includes(s.id)) && 
       s.id !== 'lunch_prep'
     );
+
+    // Custom formatting for Sidebar to avoid ugly wrapping
+    const rocYear = now.getFullYear() - 1911;
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const dateNum = now.getDate().toString().padStart(2, '0');
+    const week = WEEKDAYS[now.getDay()];
+    const dayTypeLabel = dayTypes[now.getDay()] === 'full' ? '全天課' : '半天課';
+
     return (
       <div className="w-64 h-full bg-white/80 backdrop-blur-md border-r border-white/20 flex flex-col shadow-xl z-20">
         <div className="p-6 bg-gradient-to-br from-indigo-600 to-blue-700 text-white shadow-lg shrink-0">
           <div className="text-4xl font-mono font-bold tracking-tight">
             {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: !is24Hour })}
           </div>
-          <div className="text-blue-100 mt-2 text-sm font-medium">{formatROCDate(now)}</div>
+          {/* Modified Layout */}
+          <div className="text-blue-100 mt-2 text-sm font-medium flex flex-col gap-1">
+            <span>民國{rocYear}年{month}月{dateNum}日</span>
+            <div className="flex justify-between items-center">
+               <span>星期{week}</span>
+               <span className="px-2 py-0.5 bg-white/20 rounded-md text-xs border border-white/10 shadow-sm">{dayTypeLabel}</span>
+            </div>
+          </div>
         </div>
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {displaySlots.map((slot) => {
