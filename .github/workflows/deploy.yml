@@ -25,9 +25,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
-          # 如果您的 package-lock.json 也在子資料夾，建議加上這行，若無可忽略
-          cache-dependency-path: 'Classroom Tools/package-lock.json'
+          # 移除 cache 設定，因為網頁上傳通常沒有 package-lock.json，會導致找不到檔案的錯誤
+          # cache: 'npm'
+          # cache-dependency-path: 'Classroom Tools/package-lock.json'
           
       - name: Install dependencies
         # 新增：指定工作目錄為您建立的資料夾
