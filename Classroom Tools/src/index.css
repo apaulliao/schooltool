@@ -8,3 +8,12 @@ body {
   margin: 0;
   overflow: hidden; /* 防止捲軸出現 */
 }
+
+/* 隱藏捲軸的 Utility */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
