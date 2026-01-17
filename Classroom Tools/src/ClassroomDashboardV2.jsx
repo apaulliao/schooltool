@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 
 // 引入新拆分的設定組件 (已修正路徑)
-import SettingsModal from './SettingsModal';
+import SettingsModal from './SettingsModal.jsx';
 
 // --- 預設資料 (Constants) ---
 const DEFAULT_TIME_SLOTS = [
@@ -917,3 +917,4 @@ const ClassroomDashboardV2 = () => {
 };
 
 export default ClassroomDashboardV2;
+
