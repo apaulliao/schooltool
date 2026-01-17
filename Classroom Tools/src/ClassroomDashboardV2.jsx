@@ -400,18 +400,28 @@ const SettingsModal = ({
   };
 
   const handleTimeChange = (e) => {
-    setIsManualEco(false);
-    setIsAutoEcoOverride(true);
+    e.stopPropagation(); // 阻止事件冒泡
+    const newTime = e.target.value;
     
-    const [h, m] = e.target.value.split(':').map(Number);
+    // 如果輸入為空，不進行任何操作
+    if (!newTime) return;
+
+    // 將時間字串轉換為當日 Date 物件
+    const [h, m] = newTime.split(':').map(Number);
     const nowReal = new Date();
     const targetDate = new Date(nowReal);
     targetDate.setHours(h);
     targetDate.setMinutes(m);
     targetDate.setSeconds(0);
+    
+    // 計算偏移量並更新
     const offset = targetDate.getTime() - nowReal.getTime();
     setTimeOffset(offset);
     setNow(new Date(Date.now() + offset)); 
+    
+    // 強制更新狀態
+    setIsManualEco(false);
+    setIsAutoEcoOverride(true);
   };
 
   const handleAddSubject = () => {
