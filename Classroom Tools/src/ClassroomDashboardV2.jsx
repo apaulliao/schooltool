@@ -400,9 +400,10 @@ const SettingsModal = ({
   };
 
   const handleTimeChange = (e) => {
-    e.stopPropagation(); // 阻止事件冒泡
-    const newTime = e.target.value;
+    // 阻止事件冒泡，防止觸發底層 UI 的點擊事件
+    e.stopPropagation();
     
+    const newTime = e.target.value;
     // 如果輸入為空，不進行任何操作
     if (!newTime) return;
 
@@ -419,7 +420,8 @@ const SettingsModal = ({
     setTimeOffset(offset);
     setNow(new Date(Date.now() + offset)); 
     
-    // 強制更新狀態
+    // 強制更新狀態，同時防止系統自動重置為省電模式
+    // 注意：setIsAutoEcoOverride 設為 true 可防止系統自動切換回預設
     setIsManualEco(false);
     setIsAutoEcoOverride(true);
   };
@@ -1064,7 +1066,9 @@ const App = () => {
   // Keyboard Shortcuts
   useEffect(() => {
     const handleKeyDown = (e) => {
+      // 如果正在編輯訊息，或者打開了設定/廣播，就不攔截鍵盤
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      if (showSettings || showBroadcastInput || isEditingMessage) return;
 
       if (e.key === 'f' || e.key === 'F') {
         toggleFullScreen();
