@@ -7,7 +7,7 @@ import {
   Utensils, Droplet, Waves, ArrowRight
 } from 'lucide-react';
 
-// 引入新拆分的設定組件 (已修正路徑)
+// 修正：加上 .jsx 副檔名以確保正確解析
 import SettingsModal from './SettingsModal.jsx';
 
 // --- 預設資料 (Constants) ---
@@ -917,4 +917,3 @@ const ClassroomDashboardV2 = () => {
 };
 
 export default ClassroomDashboardV2;
-
