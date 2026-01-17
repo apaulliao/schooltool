@@ -7,8 +7,8 @@ import {
   Utensils, Droplet, Waves, ArrowRight
 } from 'lucide-react';
 
-// 引入新拆分的設定組件 (請確保路徑正確)
-import SettingsModal from './components/modals/SettingsModal';
+// 引入新拆分的設定組件 (已修正路徑)
+import SettingsModal from './SettingsModal';
 
 // --- 預設資料 (Constants) ---
 const DEFAULT_TIME_SLOTS = [
@@ -94,7 +94,7 @@ const SYSTEM_BUTTONS_CONFIG = {
         { id: 'activity_center', label: '活動中心', message: '全班在活動中心', sub: '週會/宣導活動，請依序入座', icon: Tent, color: 'from-purple-500 to-violet-400' },
         { id: 'computer_lab', label: '電腦教室', message: '全班在電腦教室', sub: '資訊課程，請帶筆記本', icon: MonitorPlay, color: 'from-indigo-500 to-blue-500' },
         { id: 'swimming_pool', label: '游泳池', message: '全班在游泳池', sub: '請攜帶泳具、毛巾', icon: Waves, color: 'from-cyan-500 to-blue-600' },
-        { id: 'av_room', label: '視聽教室', message: '全班在視聽教室', sub: '觀賞影片/講座，請保持安靜', icon: MonitorPlay, color: 'from-rose-400 to-red-500' }, // 注意: 這裡為了簡化 import, 暫時重複使用 MonitorPlay
+        { id: 'av_room', label: '視聽教室', message: '全班在視聽教室', sub: '觀賞影片/講座，請保持安靜', icon: MonitorPlay, color: 'from-rose-400 to-red-500' }, 
       ]
     },
     {
@@ -161,15 +161,332 @@ const QuietModeView = ({ title, subtext, icon: IconComponent, centerContent, onC
 
 // --- 工具箱 Modal ---
 const ToolsModal = ({ isOpen, onClose }) => {
-  // ... (此處保留原有的 ToolsModal 程式碼，為節省篇幅省略，請直接使用原檔案內容) ...
-  // 請確認這裡的內容與原本一致
-  return null; // 這裡僅為示意，實作時請貼上原有的 ToolsModal 內容
+  const [activeTab, setActiveTab] = useState('timer'); // timer | random
+  
+  // Timer State
+  const [timeLeft, setTimeLeft] = useState(0);
+  const [isTimerRunning, setIsTimerRunning] = useState(false);
+  const [customMinutes, setCustomMinutes] = useState(''); // 自訂時間狀態
+
+  // 音效 Ref
+  const audioRef = useRef(null);
+  const tickRef = useRef(null); // 新增：倒數音效 Ref
+  
+  // Random Picker State
+  const [studentCount, setStudentCount] = useState(30);
+  const [pickedNumber, setPickedNumber] = useState(null);
+  const [isRolling, setIsRolling] = useState(false);
+
+  // Timer Logic
+  useEffect(() => {
+    let interval;
+    if (isTimerRunning && timeLeft > 0) {
+      interval = setInterval(() => {
+        setTimeLeft(prev => {
+           // 最後 5 秒倒數音效
+           if (prev <= 6 && prev > 1 && tickRef.current) {
+             tickRef.current.currentTime = 0;
+             tickRef.current.play().catch(e => {});
+           }
+           return prev - 1;
+        });
+      }, 1000);
+    } else if (timeLeft === 0 && isTimerRunning) {
+      // 倒數結束
+      setIsTimerRunning(false);
+      // 播放結束音效
+      if (audioRef.current) {
+        audioRef.current.play().catch(e => console.error("Audio play failed:", e));
+      }
+    } else if (timeLeft === 0) {
+        setIsTimerRunning(false);
+    }
+    return () => clearInterval(interval);
+  }, [isTimerRunning, timeLeft]);
+
+  const formatTime = (seconds) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s < 10 ? '0' : ''}${s}`;
+  };
+
+  const startTimer = (mins) => {
+    setTimeLeft(Math.floor(mins * 60));
+    setIsTimerRunning(true);
+  };
+
+  // Random Picker Logic
+  const handlePick = () => {
+    if (isRolling) return;
+    setIsRolling(true);
+    setPickedNumber(null);
+    let count = 0;
+    const maxCount = 20;
+    const interval = setInterval(() => {
+      setPickedNumber(Math.floor(Math.random() * studentCount) + 1);
+      count++;
+      if (count >= maxCount) {
+        clearInterval(interval);
+        setIsRolling(false);
+      }
+    }, 50);
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+        <div className="p-4 bg-slate-800 text-white flex justify-between items-center">
+          <h2 className="text-xl font-bold flex items-center gap-2"><Box size={24}/> 教室百寶箱</h2>
+          <button onClick={onClose} className="p-2 hover:bg-slate-700 rounded-full"><X size={20}/></button>
+        </div>
+        
+        <div className="flex border-b border-slate-200">
+          <button 
+            onClick={() => setActiveTab('timer')}
+            className={`flex-1 py-4 font-bold transition-colors flex items-center justify-center gap-2 ${activeTab === 'timer' ? 'text-blue-600 bg-blue-50 border-b-2 border-blue-600' : 'text-slate-500 hover:bg-slate-50'}`}
+          >
+            <Clock size={20}/> 倒數計時
+          </button>
+          <button 
+            onClick={() => setActiveTab('random')}
+            className={`flex-1 py-4 font-bold transition-colors flex items-center justify-center gap-2 ${activeTab === 'random' ? 'text-purple-600 bg-purple-50 border-b-2 border-purple-600' : 'text-slate-500 hover:bg-slate-50'}`}
+          >
+            <Shuffle size={20}/> 幸運抽籤
+          </button>
+        </div>
+
+        <div className="p-8 min-h-[300px] flex flex-col items-center justify-center">
+          {activeTab === 'timer' && (
+            <div className="w-full flex flex-col items-center">
+               {/* 隱藏的 Audio 元素 */}
+               <audio ref={audioRef} src="https://actions.google.com/sounds/v1/alarms/digital_watch_alarm_long.ogg" preload="auto" />
+               <audio ref={tickRef} src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto" />
+
+               <div className={`text-8xl font-mono font-bold mb-8 ${timeLeft < 10 && timeLeft > 0 ? 'text-red-500 animate-pulse' : 'text-slate-700'}`}>
+                 {formatTime(timeLeft)}
+               </div>
+               
+               <div className="flex gap-4 mb-4 w-full justify-center">
+                 {[1,3,5,10].map(m => (
+                    <button key={m} onClick={() => startTimer(m)} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700 font-bold">{m}分鐘</button>
+                 ))}
+               </div>
+
+                {/* 自訂時間 */}
+               <div className="flex gap-2 mb-8 items-center bg-slate-50 p-2 rounded-xl border border-slate-100 shadow-sm">
+                  <span className="text-slate-500 font-bold text-sm pl-2">自訂：</span>
+                  <input 
+                    type="number" 
+                    value={customMinutes}
+                    onChange={(e) => setCustomMinutes(e.target.value)}
+                    placeholder="分鐘"
+                    className="w-24 p-2 border rounded-lg text-center font-bold text-slate-700 focus:ring-2 focus:ring-blue-400 outline-none text-sm"
+                    onKeyDown={(e) => {
+                        if(e.key === 'Enter' && customMinutes) {
+                            startTimer(Number(customMinutes));
+                            setCustomMinutes('');
+                        }
+                    }}
+                  />
+                  <button 
+                    onClick={() => {
+                        if(customMinutes) {
+                            startTimer(Number(customMinutes));
+                            setCustomMinutes('');
+                        }
+                    }}
+                    className="px-4 py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg font-bold transition-colors text-sm"
+                  >
+                    設定
+                  </button>
+               </div>
+
+               <div className="flex gap-4">
+                 <button 
+                   onClick={() => setIsTimerRunning(!isTimerRunning)}
+                   className={`w-16 h-16 rounded-full flex items-center justify-center text-white shadow-lg transition-transform hover:scale-105 active:scale-95 ${isTimerRunning ? 'bg-amber-500' : 'bg-green-500'}`}
+                 >
+                   {isTimerRunning ? <Pause size={32}/> : <Play size={32}/>}
+                 </button>
+                 <button 
+                   onClick={() => { setIsTimerRunning(false); setTimeLeft(0); }}
+                   className="w-16 h-16 rounded-full flex items-center justify-center text-slate-500 bg-slate-200 shadow-lg transition-transform hover:scale-105 active:scale-95 hover:bg-slate-300"
+                 >
+                   <RotateCcw size={32}/>
+                 </button>
+               </div>
+            </div>
+          )}
+
+          {activeTab === 'random' && (
+            <div className="w-full flex flex-col items-center">
+               <div className="mb-4 flex items-center gap-2">
+                 <span className="text-slate-500 font-bold">班級人數：</span>
+                 <input 
+                   type="number" 
+                   value={studentCount} 
+                   onChange={(e) => setStudentCount(Number(e.target.value))}
+                   className="w-20 p-2 border rounded-lg text-center font-bold text-slate-700 focus:ring-2 focus:ring-purple-400 outline-none"
+                 />
+               </div>
+
+               <div className="w-48 h-48 bg-gradient-to-br from-purple-100 to-pink-100 rounded-full flex items-center justify-center border-4 border-white shadow-inner mb-8">
+                  <span className={`text-8xl font-bold text-purple-600 ${isRolling ? 'blur-sm' : ''}`}>
+                    {pickedNumber !== null ? pickedNumber : '?'}
+                  </span>
+               </div>
+
+               <button 
+                 onClick={handlePick}
+                 disabled={isRolling}
+                 className="px-8 py-4 bg-purple-600 text-white text-xl font-bold rounded-2xl shadow-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95 flex items-center gap-2"
+               >
+                 <Shuffle/> {isRolling ? '抽選中...' : '開始抽籤'}
+               </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 };
 
 // --- 廣播輸入 Modal (升級版) ---
 const BroadcastInputModal = ({ isOpen, onClose, onConfirm, customPresets, setCustomPresets }) => {
-  // ... (此處保留原有的 BroadcastInputModal 程式碼，請直接使用原檔案內容) ...
-  return null; // 這裡僅為示意
+  const [activeTabId, setActiveTabId] = useState(1);
+  const [title, setTitle] = useState('');
+  const [sub, setSub] = useState('');
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [tempName, setTempName] = useState('');
+
+  // 當打開或切換 Tab 時，載入對應的預設值
+  useEffect(() => {
+    if (isOpen) {
+      const preset = customPresets.find(p => p.id === activeTabId);
+      if (preset) {
+        setTitle(preset.title);
+        setSub(preset.sub);
+        setTempName(preset.name);
+      }
+    }
+  }, [isOpen, activeTabId, customPresets]);
+
+  const handleSavePreset = () => {
+    const newPresets = customPresets.map(p => 
+      p.id === activeTabId 
+        ? { ...p, title, sub, name: isEditingName ? tempName : p.name } 
+        : p
+    );
+    setCustomPresets(newPresets);
+    setIsEditingName(false);
+  };
+
+  const handlePublish = () => {
+    handleSavePreset();
+    onConfirm(title, sub);
+    onClose(); 
+  };
+
+  if (!isOpen) return null;
+
+  const currentPreset = customPresets.find(p => p.id === activeTabId);
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-white w-full max-w-xl rounded-3xl shadow-2xl p-6 animate-in zoom-in-95 duration-200 flex flex-col">
+        <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+            <Megaphone className="text-pink-500" />
+            發布自訂廣播
+            </h2>
+            <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full"><X size={20}/></button>
+        </div>
+        
+        {/* Tab 切換區 */}
+        <div className="flex gap-2 mb-6 bg-slate-100 p-1 rounded-xl">
+            {customPresets.map(preset => (
+                <button
+                    key={preset.id}
+                    onClick={() => setActiveTabId(preset.id)}
+                    className={`flex-1 py-2 rounded-lg font-bold text-sm transition-all ${
+                        activeTabId === preset.id 
+                        ? 'bg-white text-pink-600 shadow-sm' 
+                        : 'text-slate-500 hover:bg-slate-200/50'
+                    }`}
+                >
+                    {preset.name}
+                </button>
+            ))}
+        </div>
+
+        <div className="space-y-4 mb-4">
+            {/* 按鈕名稱編輯區 */}
+            <div className="flex items-center gap-2 mb-2">
+                <span className="text-xs font-bold text-slate-400 uppercase">按鈕名稱</span>
+                {isEditingName ? (
+                    <div className="flex items-center gap-2 flex-1">
+                        <input 
+                            value={tempName}
+                            onChange={(e) => setTempName(e.target.value)}
+                            className="px-2 py-1 text-sm border rounded w-32"
+                            autoFocus
+                        />
+                        <button onClick={() => { handleSavePreset(); setIsEditingName(false); }} className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">V</button>
+                    </div>
+                ) : (
+                    <button onClick={() => { setTempName(currentPreset?.name); setIsEditingName(true); }} className="text-xs flex items-center gap-1 text-slate-400 hover:text-blue-500">
+                        {currentPreset?.name} <Edit3 size={10}/>
+                    </button>
+                )}
+            </div>
+
+          <div>
+            <label className="block text-sm font-bold text-slate-500 mb-1">主標題</label>
+            <input 
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="w-full p-3 border-2 border-slate-200 rounded-xl focus:border-pink-500 focus:outline-none text-lg font-bold"
+              placeholder="例如：全班集合"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-bold text-slate-500 mb-1">副標題</label>
+            <input 
+              value={sub}
+              onChange={(e) => setSub(e.target.value)}
+              className="w-full p-3 border-2 border-slate-200 rounded-xl focus:border-pink-500 focus:outline-none"
+              placeholder="例如：請帶水壺至走廊"
+            />
+          </div>
+        </div>
+
+        {/* 預覽區 */}
+        <div className="bg-slate-50 rounded-xl p-4 mb-6 border border-slate-100 text-center">
+            <div className="text-xs text-slate-400 font-bold mb-2">畫面預覽</div>
+            <div className="text-2xl font-bold text-slate-800">{title || '主標題'}</div>
+            <div className="text-sm text-slate-500 mt-1">{sub || '副標題'}</div>
+        </div>
+
+        <div className="flex justify-end gap-3">
+          <button 
+            onClick={onClose} 
+            className="px-6 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-100"
+          >
+            取消
+          </button>
+          <button 
+            onClick={handlePublish}
+            disabled={!title}
+            className="px-6 py-3 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            發布廣播
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 // ... CircularProgress ... (保持不變)
