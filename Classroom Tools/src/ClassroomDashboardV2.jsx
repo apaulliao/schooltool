@@ -372,7 +372,7 @@ const BroadcastInputModal = ({ isOpen, onClose, onConfirm }) => {
   );
 };
 
-// ... SettingsModal ...
+// ... SettingsModal ... (需修改 Reset 邏輯)
 const SettingsModal = ({ 
   isOpen, onClose, 
   timeSlots, setTimeSlots, 
@@ -382,6 +382,7 @@ const SettingsModal = ({
   timeOffset, setTimeOffset,
   setIsManualEco,
   setIsAutoEcoOverride, 
+  setNow, 
   is24Hour, setIs24Hour,
   setSpecialButtons // 接收 setSpecialButtons
 }) => {
@@ -410,6 +411,7 @@ const SettingsModal = ({
     targetDate.setSeconds(0);
     const offset = targetDate.getTime() - nowReal.getTime();
     setTimeOffset(offset);
+    setNow(new Date(Date.now() + offset)); 
   };
 
   const handleAddSubject = () => {
@@ -713,47 +715,6 @@ const SettingsModal = ({
             <p className="text-xs text-slate-400 mt-4 text-center">
               💡 提示：直接點擊「科目名稱」即可修改。修改後，課表中的相關課程會自動更新名稱。
             </p>
-          </SettingsSection>
-          
-          {/* 補回「時間表設定」區塊 */}
-          <SettingsSection 
-            title="時間表設定 (全天課基準)" 
-            icon={Clock} 
-            isOpen={expandedSections['times']} 
-            onToggle={() => toggleSection('times')}
-            colorClass="text-purple-600"
-          >
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-               {timeSlots.map((slot, idx) => (
-                 <div key={slot.id} className="flex flex-col p-4 border rounded-xl bg-white shadow-sm hover:shadow-md transition-shadow">
-                    <div className="flex justify-between mb-2">
-                      <span className="font-bold text-slate-700">{slot.name}</span>
-                      <span className={`text-xs px-2 py-0.5 rounded font-bold ${slot.type === 'break' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
-                        {slot.type === 'break' ? '休息/其他' : '上課'}
-                      </span>
-                    </div>
-                    <div className="flex gap-2 items-center">
-                      <input type="time" value={slot.start} 
-                        onChange={(e) => {
-                          const newSlots = [...timeSlots];
-                          newSlots[idx].start = e.target.value;
-                          setTimeSlots(newSlots);
-                        }}
-                        className="border rounded p-1 w-full text-center bg-slate-50 focus:bg-white focus:ring-2 focus:ring-purple-200 outline-none transition-all"
-                      />
-                      <span className="text-slate-400 font-bold">-</span>
-                      <input type="time" value={slot.end} 
-                        onChange={(e) => {
-                          const newSlots = [...timeSlots];
-                          newSlots[idx].end = e.target.value;
-                          setTimeSlots(newSlots);
-                        }}
-                        className="border rounded p-1 w-full text-center bg-slate-50 focus:bg-white focus:ring-2 focus:ring-purple-200 outline-none transition-all"
-                      />
-                    </div>
-                 </div>
-               ))}
-            </div>
           </SettingsSection>
 
           <SettingsSection 
@@ -1197,9 +1158,13 @@ const App = () => {
   }, [timeSlots, schedule, subjectHints, specialButtons, is24Hour, dayTypes]);
 
   useEffect(() => {
-    setIsAutoEcoOverride(false);
-    setDismissedNap(false); 
-  }, [currentSlot?.id]);
+    // 只有在【沒有打開設定視窗】的時候，才允許自動切換模式
+    // 這樣可以防止調整時間時，系統自動跳轉到其他畫面干擾操作
+    if (!showSettings) {
+      setIsAutoEcoOverride(false);
+      setDismissedNap(false);
+    }
+  }, [currentSlot?.id, showSettings]);
 
   useEffect(() => {
     if (specialStatus) {
@@ -1561,6 +1526,7 @@ const App = () => {
         setTimeOffset={setTimeOffset}
         setIsManualEco={setIsManualEco}
         setIsAutoEcoOverride={setIsAutoEcoOverride}
+        setNow={setNow} // Pass setNow to SettingsModal
         is24Hour={is24Hour}
         setIs24Hour={setIs24Hour}
         setSpecialButtons={setSpecialButtons} // 傳遞更新按鈕的 function
