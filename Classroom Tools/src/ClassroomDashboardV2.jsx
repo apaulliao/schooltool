@@ -1,5 +1,12 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Settings, Clock, MapPin, Coffee, BookOpen, Volume2, Edit3, X, Save, RefreshCw, Bell, Wrench, Calendar, Sun, Sunset, ChevronDown, ChevronRight, Moon, Star, Download, Upload, Monitor, Maximize, Minimize, Plus, Trash2, AlertCircle, BedDouble, Box, Play, Pause, RotateCcw, Shuffle, Megaphone, Home } from 'lucide-react';
+import { 
+  Settings, Clock, MapPin, Coffee, BookOpen, Volume2, Edit3, X, Save, RefreshCw, 
+  Bell, Wrench, Calendar, Sun, Sunset, ChevronDown, ChevronRight, Moon, Star, 
+  Download, Upload, Monitor, Maximize, Minimize, Plus, Trash2, AlertCircle, 
+  BedDouble, Box, Play, Pause, RotateCcw, Shuffle, Megaphone, Home,
+  LogOut, LogIn, UserX, Eye, ShieldAlert, Library, Tent, Trees, MonitorPlay,
+  Utensils, Droplet, UserCheck, Waves
+} from 'lucide-react';
 
 // --- 預設資料 ---
 const DEFAULT_TIME_SLOTS = [
@@ -71,14 +78,50 @@ const DEFAULT_SUBJECT_HINTS = {
   '放學': '請收拾好書包，拿好餐袋及個人物品到走廊排隊'
 };
 
-const DEFAULT_SPECIAL_BUTTONS = [
-  { id: 1, label: '圖書館', message: '全班在圖書館', sub: '預計下課前回教室', color: 'from-blue-500 to-cyan-400' },
-  { id: 2, label: '操場', message: '全班在操場', sub: '體育課/戶外活動', color: 'from-green-500 to-emerald-400' },
-  { id: 3, label: '活動中心', message: '至活動中心集合', sub: '週會/宣導活動', color: 'from-purple-500 to-violet-400' },
-  { id: 4, label: '電腦教室', message: '全班在電腦教室', sub: '資訊課程', color: 'from-indigo-500 to-blue-500' },
-  { id: 5, label: '晨間閱讀', message: '晨間閱讀', sub: '請安靜閱讀', color: 'from-amber-900 to-orange-950', type: 'dark', icon: 'book' },
-  { id: 6, label: '午休', message: '午休時間', sub: '請趴下休息', color: 'from-indigo-950 to-slate-900', type: 'dark', icon: 'moon' },
-  { id: 99, label: '自訂廣播', message: '', sub: '', color: 'from-pink-500 to-rose-500', type: 'input', icon: 'megaphone' },
+// 這是新的整合式按鈕結構定義 (不再直接用於渲染，而是作為選單資料源)
+// type: 'action' (直接觸發), 'group' (彈出選單), 'input' (自訂輸入)
+const SYSTEM_BUTTONS_CONFIG = {
+  groups: [
+    {
+      id: 'move',
+      label: '移動/集合',
+      icon: MapPin,
+      color: 'bg-emerald-600',
+      items: [
+        { id: 'playground', label: '操場', message: '全班在操場', sub: '請攜帶水壺/毛巾，體育課/戶外活動', icon: Trees, color: 'from-green-500 to-emerald-400' },
+        { id: 'library', label: '圖書館', message: '全班在圖書館', sub: '請攜帶借書證，保持安靜', icon: Library, color: 'from-blue-500 to-cyan-400' },
+        { id: 'activity_center', label: '活動中心', message: '全班在活動中心', sub: '週會/宣導活動，請依序入座', icon: Tent, color: 'from-purple-500 to-violet-400' },
+        { id: 'computer_lab', label: '電腦教室', message: '全班在電腦教室', sub: '資訊課程，請帶筆記本', icon: MonitorPlay, color: 'from-indigo-500 to-blue-500' },
+        { id: 'swimming_pool', label: '游泳池', message: '全班在游泳池', sub: '請攜帶泳具、毛巾', icon: Waves, color: 'from-cyan-500 to-blue-600' },
+        { id: 'av_room', label: '視聽教室', message: '全班在視聽教室', sub: '觀賞影片/講座，請保持安靜', icon: Monitor, color: 'from-rose-400 to-red-500' },
+      ]
+    },
+    {
+      id: 'status',
+      label: '作息/狀態',
+      icon: Coffee,
+      color: 'bg-indigo-600',
+      items: [
+        { id: 'morning_read', label: '晨間閱讀', message: '晨間閱讀', sub: '請安靜閱讀，享受書本樂趣', type: 'dark', icon: BookOpen, color: 'from-amber-900 to-orange-950' },
+        { id: 'nap', label: '午休', message: '午休時間', sub: '請趴下休息，保持安靜', type: 'dark', icon: Moon, color: 'from-indigo-950 to-slate-900' },
+        { id: 'lunch', label: '午餐', message: '午餐時間', sub: '請細嚼慢嚥，保持桌面整潔', icon: Utensils, color: 'from-orange-400 to-amber-500' },
+        { id: 'cleaning', label: '打掃', message: '打掃時間', sub: '請拿起掃具，認真打掃環境', icon: Droplet, color: 'from-cyan-400 to-blue-500' },
+        { id: 'after_school', label: '放學', message: '放學時間', sub: '請收拾書包，座位淨空', icon: Home, color: 'from-green-500 to-emerald-600' },
+        { id: 'teacher_meeting', label: '老師開會', message: '老師處理公務中', sub: '請安靜進行班級活動', type: 'dark', icon: UserX, color: 'from-slate-700 to-slate-900' },
+      ]
+    }
+  ],
+  singles: [
+    { id: 'back_classroom', label: '回教室', message: '請盡速回教室', sub: '下課後，準備下一節課程', icon: LogIn, color: 'bg-blue-600' },
+    { id: 'corridor', label: '走廊排隊', message: '走廊排隊中', sub: '靠上椅子，在走廊安靜排隊', icon: LogOut, color: 'bg-orange-500' },
+  ]
+};
+
+// 預設的三組自訂廣播
+const DEFAULT_CUSTOM_BROADCASTS = [
+  { id: 1, name: '常用1', title: '全班集合', sub: '請到走廊排隊' },
+  { id: 2, name: '常用2', title: '安靜自習', sub: '請拿出課本閱讀' },
+  { id: 3, name: '常用3', title: '放學準備', sub: '抄寫聯絡簿，整理書包' },
 ];
 
 const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六'];
@@ -146,6 +189,10 @@ const ToolsModal = ({ isOpen, onClose }) => {
   const [timeLeft, setTimeLeft] = useState(0);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [customMinutes, setCustomMinutes] = useState(''); // 自訂時間狀態
+
+  // 音效 Ref
+  const audioRef = useRef(null);
+  const tickRef = useRef(null); // 新增：倒數音效 Ref
   
   // Random Picker State
   const [studentCount, setStudentCount] = useState(30);
@@ -156,9 +203,25 @@ const ToolsModal = ({ isOpen, onClose }) => {
   useEffect(() => {
     let interval;
     if (isTimerRunning && timeLeft > 0) {
-      interval = setInterval(() => setTimeLeft(prev => prev - 1), 1000);
-    } else if (timeLeft === 0) {
+      interval = setInterval(() => {
+        setTimeLeft(prev => {
+           // 最後 5 秒倒數音效
+           if (prev <= 6 && prev > 1 && tickRef.current) {
+             tickRef.current.currentTime = 0;
+             tickRef.current.play().catch(e => {});
+           }
+           return prev - 1;
+        });
+      }, 1000);
+    } else if (timeLeft === 0 && isTimerRunning) {
+      // 倒數結束
       setIsTimerRunning(false);
+      // 播放結束音效
+      if (audioRef.current) {
+        audioRef.current.play().catch(e => console.error("Audio play failed:", e));
+      }
+    } else if (timeLeft === 0) {
+        setIsTimerRunning(false);
     }
     return () => clearInterval(interval);
   }, [isTimerRunning, timeLeft]);
@@ -219,15 +282,18 @@ const ToolsModal = ({ isOpen, onClose }) => {
         <div className="p-8 min-h-[300px] flex flex-col items-center justify-center">
           {activeTab === 'timer' && (
             <div className="w-full flex flex-col items-center">
+               {/* 隱藏的 Audio 元素 */}
+               <audio ref={audioRef} src="https://actions.google.com/sounds/v1/alarms/digital_watch_alarm_long.ogg" preload="auto" />
+               <audio ref={tickRef} src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto" />
+
                <div className={`text-8xl font-mono font-bold mb-8 ${timeLeft < 10 && timeLeft > 0 ? 'text-red-500 animate-pulse' : 'text-slate-700'}`}>
                  {formatTime(timeLeft)}
                </div>
                
                <div className="flex gap-4 mb-4 w-full justify-center">
-                 <button onClick={() => startTimer(1)} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700 font-bold">1分鐘</button>
-                 <button onClick={() => startTimer(3)} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700 font-bold">3分鐘</button>
-                 <button onClick={() => startTimer(5)} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700 font-bold">5分鐘</button>
-                 <button onClick={() => startTimer(10)} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700 font-bold">10分鐘</button>
+                 {[1,3,5,10].map(m => (
+                    <button key={m} onClick={() => startTimer(m)} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700 font-bold">{m}分鐘</button>
+                 ))}
                </div>
 
                 {/* 自訂時間 */}
@@ -309,22 +375,95 @@ const ToolsModal = ({ isOpen, onClose }) => {
   );
 };
 
-// --- 廣播輸入 Modal (記憶功能) ---
-const BroadcastInputModal = ({ isOpen, onClose, onConfirm }) => {
-  const [title, setTitle] = useState(() => localStorage.getItem('lastBroadcastTitle') || '');
-  const [sub, setSub] = useState(() => localStorage.getItem('lastBroadcastSub') || '');
+// --- 廣播輸入 Modal (升級版) ---
+const BroadcastInputModal = ({ isOpen, onClose, onConfirm, customPresets, setCustomPresets }) => {
+  const [activeTabId, setActiveTabId] = useState(1);
+  const [title, setTitle] = useState('');
+  const [sub, setSub] = useState('');
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [tempName, setTempName] = useState('');
+
+  // 當打開或切換 Tab 時，載入對應的預設值
+  useEffect(() => {
+    if (isOpen) {
+      const preset = customPresets.find(p => p.id === activeTabId);
+      if (preset) {
+        setTitle(preset.title);
+        setSub(preset.sub);
+        setTempName(preset.name);
+      }
+    }
+  }, [isOpen, activeTabId, customPresets]);
+
+  const handleSavePreset = () => {
+    const newPresets = customPresets.map(p => 
+      p.id === activeTabId 
+        ? { ...p, title, sub, name: isEditingName ? tempName : p.name } 
+        : p
+    );
+    setCustomPresets(newPresets);
+    setIsEditingName(false);
+  };
+
+  const handlePublish = () => {
+    handleSavePreset();
+    onConfirm(title, sub);
+    onClose(); // *** 修改：發布後自動關閉視窗 ***
+  };
 
   if (!isOpen) return null;
 
+  const currentPreset = customPresets.find(p => p.id === activeTabId);
+
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={(e) => e.stopPropagation()}>
-      <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl p-8 animate-in zoom-in-95 duration-200">
-        <h2 className="text-2xl font-bold mb-6 text-slate-800 flex items-center gap-2">
-          <Megaphone className="text-pink-500" />
-          發布自訂廣播
-        </h2>
+      <div className="bg-white w-full max-w-xl rounded-3xl shadow-2xl p-6 animate-in zoom-in-95 duration-200 flex flex-col">
+        <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+            <Megaphone className="text-pink-500" />
+            發布自訂廣播
+            </h2>
+            <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full"><X size={20}/></button>
+        </div>
         
-        <div className="space-y-4">
+        {/* Tab 切換區 */}
+        <div className="flex gap-2 mb-6 bg-slate-100 p-1 rounded-xl">
+            {customPresets.map(preset => (
+                <button
+                    key={preset.id}
+                    onClick={() => setActiveTabId(preset.id)}
+                    className={`flex-1 py-2 rounded-lg font-bold text-sm transition-all ${
+                        activeTabId === preset.id 
+                        ? 'bg-white text-pink-600 shadow-sm' 
+                        : 'text-slate-500 hover:bg-slate-200/50'
+                    }`}
+                >
+                    {preset.name}
+                </button>
+            ))}
+        </div>
+
+        <div className="space-y-4 mb-4">
+            {/* 按鈕名稱編輯區 */}
+            <div className="flex items-center gap-2 mb-2">
+                <span className="text-xs font-bold text-slate-400 uppercase">按鈕名稱</span>
+                {isEditingName ? (
+                    <div className="flex items-center gap-2 flex-1">
+                        <input 
+                            value={tempName}
+                            onChange={(e) => setTempName(e.target.value)}
+                            className="px-2 py-1 text-sm border rounded w-32"
+                            autoFocus
+                        />
+                        <button onClick={() => { handleSavePreset(); setIsEditingName(false); }} className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">V</button>
+                    </div>
+                ) : (
+                    <button onClick={() => { setTempName(currentPreset?.name); setIsEditingName(true); }} className="text-xs flex items-center gap-1 text-slate-400 hover:text-blue-500">
+                        {currentPreset?.name} <Edit3 size={10}/>
+                    </button>
+                )}
+            </div>
+
           <div>
             <label className="block text-sm font-bold text-slate-500 mb-1">主標題</label>
             <input 
@@ -332,11 +471,10 @@ const BroadcastInputModal = ({ isOpen, onClose, onConfirm }) => {
               onChange={(e) => setTitle(e.target.value)}
               className="w-full p-3 border-2 border-slate-200 rounded-xl focus:border-pink-500 focus:outline-none text-lg font-bold"
               placeholder="例如：全班集合"
-              autoFocus
             />
           </div>
           <div>
-            <label className="block text-sm font-bold text-slate-500 mb-1">副標題 (選填)</label>
+            <label className="block text-sm font-bold text-slate-500 mb-1">副標題</label>
             <input 
               value={sub}
               onChange={(e) => setSub(e.target.value)}
@@ -346,7 +484,14 @@ const BroadcastInputModal = ({ isOpen, onClose, onConfirm }) => {
           </div>
         </div>
 
-        <div className="flex justify-end gap-3 mt-8">
+        {/* 預覽區 */}
+        <div className="bg-slate-50 rounded-xl p-4 mb-6 border border-slate-100 text-center">
+            <div className="text-xs text-slate-400 font-bold mb-2">畫面預覽</div>
+            <div className="text-2xl font-bold text-slate-800">{title || '主標題'}</div>
+            <div className="text-sm text-slate-500 mt-1">{sub || '副標題'}</div>
+        </div>
+
+        <div className="flex justify-end gap-3">
           <button 
             onClick={onClose} 
             className="px-6 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-100"
@@ -354,15 +499,9 @@ const BroadcastInputModal = ({ isOpen, onClose, onConfirm }) => {
             取消
           </button>
           <button 
-            onClick={() => {
-              if (title) {
-                onConfirm(title, sub);
-                localStorage.setItem('lastBroadcastTitle', title);
-                localStorage.setItem('lastBroadcastSub', sub);
-                onClose();
-              }
-            }}
-            className="px-6 py-3 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all active:scale-95"
+            onClick={handlePublish}
+            disabled={!title}
+            className="px-6 py-3 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             發布廣播
           </button>
@@ -372,7 +511,7 @@ const BroadcastInputModal = ({ isOpen, onClose, onConfirm }) => {
   );
 };
 
-// ... SettingsModal ... (需修改 Reset 邏輯, 使用 React.memo 包裹以避免不必要的重新渲染)
+// ... SettingsModal ...
 const SettingsModal = React.memo(({ 
   isOpen, onClose, 
   timeSlots, setTimeSlots, 
@@ -384,23 +523,20 @@ const SettingsModal = React.memo(({
   setIsAutoEcoOverride, 
   setNow, 
   is24Hour, setIs24Hour,
-  setSpecialButtons,
-  now // 需要傳入 current now 用來取得當前日期
+  now,
+  visibleButtons, setVisibleButtons
 }) => {
   const [expandedSections, setExpandedSections] = useState({});
   const [newSubjectName, setNewSubjectName] = useState('');
-  const [tempTime, setTempTime] = useState(''); // 暫存時間狀態
-  const [selectedDay, setSelectedDay] = useState(''); // 暫存星期狀態
+  const [tempTime, setTempTime] = useState(''); 
+  const [selectedDay, setSelectedDay] = useState(''); 
   const fileInputRef = useRef(null);
 
   useEffect(() => {
     if (isOpen && now) {
-      // 預設為當前星期
       setSelectedDay(now.getDay().toString());
     }
-  }, [isOpen]);
-
-  if (!isOpen) return null;
+  }, [isOpen, now]);
 
   const toggleSection = (section) => {
     setExpandedSections(prev => ({
@@ -409,7 +545,6 @@ const SettingsModal = React.memo(({
     }));
   };
 
-  // 修改：僅更新暫存狀態，不立即觸發重渲染
   const handleTimeInputChange = (e) => {
     e.stopPropagation();
     setTempTime(e.target.value);
@@ -420,14 +555,11 @@ const SettingsModal = React.memo(({
     setSelectedDay(e.target.value);
   }
 
-  // 新增：按下按鈕後才正式更新系統時間
   const applyTimeChange = () => {
     const nowReal = new Date();
     let targetDate = new Date(nowReal);
 
-    // 如果有輸入時間，則解析時間
     if (tempTime) {
-      // 驗證格式 HH:mm
       const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
       if (!timeRegex.test(tempTime)) {
           alert("請輸入正確的時間格式 (HH:mm)，例如 14:30");
@@ -439,7 +571,6 @@ const SettingsModal = React.memo(({
       targetDate.setSeconds(0);
     }
 
-    // 如果有選擇星期，則計算日期偏移
     if (selectedDay !== '') {
       const currentDay = nowReal.getDay();
       const targetDay = parseInt(selectedDay, 10);
@@ -453,8 +584,6 @@ const SettingsModal = React.memo(({
     
     setIsManualEco(false);
     setIsAutoEcoOverride(true);
-    // 清空暫存，或者保留讓使用者知道當前設定
-    // setTempTime(''); 
   };
 
   const handleAddSubject = () => {
@@ -519,14 +648,15 @@ const SettingsModal = React.memo(({
 
   const handleExport = () => {
     const data = {
-      version: '2.0',
+      version: '2.1',
       timestamp: new Date().toISOString(),
       config: {
         timeSlots,
         schedule,
         subjectHints,
         dayTypes,
-        is24Hour
+        is24Hour,
+        visibleButtons
       }
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -553,6 +683,7 @@ const SettingsModal = React.memo(({
             if(data.config.subjectHints) setSubjectHints(data.config.subjectHints);
             if(data.config.dayTypes) setDayTypes(data.config.dayTypes);
             if(data.config.is24Hour !== undefined) setIs24Hour(data.config.is24Hour);
+            if(data.config.visibleButtons) setVisibleButtons(data.config.visibleButtons);
             alert('設定還原成功！');
           }
         } else {
@@ -566,6 +697,19 @@ const SettingsModal = React.memo(({
     e.target.value = ''; 
   };
 
+  // Helper function to toggle button visibility
+  const toggleButtonVisibility = (btnId) => {
+    const newSet = new Set(visibleButtons);
+    if (newSet.has(btnId)) {
+        newSet.delete(btnId);
+    } else {
+        newSet.add(btnId);
+    }
+    setVisibleButtons(Array.from(newSet));
+  };
+
+  if (!isOpen) return null;
+
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[999] flex items-center justify-center p-4" onClick={(e) => e.stopPropagation()}>
       <div className="bg-white w-full max-w-5xl h-[90vh] rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
@@ -575,6 +719,7 @@ const SettingsModal = React.memo(({
         </div>
         
         <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-50">
+          {/* 一般設定 */}
           <SettingsSection 
             title="一般設定" 
             icon={Wrench} 
@@ -602,6 +747,7 @@ const SettingsModal = React.memo(({
              </div>
           </SettingsSection>
 
+          {/* 全天/半天設定 */}
           <SettingsSection 
             title="全天/半天設定" 
             icon={Calendar} 
@@ -628,10 +774,61 @@ const SettingsModal = React.memo(({
              </div>
              <p className="text-sm text-slate-500 mt-3 flex items-center gap-2">
                <span className="w-2 h-2 rounded-full bg-yellow-400 inline-block"></span>
-               半天課模式：第五節後放學，大下課自動改為打掃時間。
+               週六、週日預設為假日（不在此設定），第五節後放學，大下課自動改為打掃時間。
              </p>
           </SettingsSection>
 
+          {/* 快捷按鈕管理 (新增) */}
+          <SettingsSection 
+            title="快捷按鈕管理" 
+            icon={MapPin} 
+            isOpen={expandedSections['buttons']} 
+            onToggle={() => toggleSection('buttons')}
+            colorClass="text-purple-600"
+          >
+             <div className="bg-purple-50 p-4 rounded-xl border border-purple-100">
+                <p className="text-sm text-purple-700 mb-4 font-bold">勾選要顯示在主畫面下方 Dock 的快捷按鈕：</p>
+                <div className="flex flex-wrap gap-3">
+                    {/* 單一按鈕 */}
+                    {SYSTEM_BUTTONS_CONFIG.singles.map(btn => (
+                        <button
+                            key={btn.id}
+                            onClick={() => toggleButtonVisibility(btn.id)}
+                            className={`px-4 py-2 rounded-lg text-sm font-bold border transition-all flex items-center gap-2 ${
+                                visibleButtons.includes(btn.id)
+                                ? 'bg-purple-600 border-purple-700 text-white shadow-md'
+                                : 'bg-white border-slate-300 text-slate-400 hover:bg-slate-50'
+                            }`}
+                        >
+                            <btn.icon size={16} /> {btn.label}
+                        </button>
+                    ))}
+                    {/* 群組內的按鈕 */}
+                    {SYSTEM_BUTTONS_CONFIG.groups.map(group => (
+                        <div key={group.id} className="flex gap-2 p-2 bg-white/50 rounded-lg border border-purple-100">
+                            <span className="text-xs font-bold text-purple-400 writing-vertical flex items-center">{group.label}</span>
+                            <div className="flex flex-wrap gap-2">
+                                {group.items.map(btn => (
+                                    <button
+                                        key={btn.id}
+                                        onClick={() => toggleButtonVisibility(btn.id)}
+                                        className={`px-3 py-2 rounded-lg text-sm font-bold border transition-all flex items-center gap-2 ${
+                                            visibleButtons.includes(btn.id)
+                                            ? 'bg-purple-600 border-purple-700 text-white shadow-md'
+                                            : 'bg-white border-slate-300 text-slate-400 hover:bg-slate-50'
+                                        }`}
+                                    >
+                                        <btn.icon size={16} /> {btn.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+             </div>
+          </SettingsSection>
+
+          {/* 課表設定 */}
           <SettingsSection 
             title="課表設定 (使用已建立的科目)" 
             icon={BookOpen} 
@@ -680,6 +877,7 @@ const SettingsModal = React.memo(({
             ))}
           </SettingsSection>
 
+          {/* 科目管理 */}
           <SettingsSection 
             title="科目提示詞與管理" 
             icon={Coffee} 
@@ -861,7 +1059,12 @@ const SettingsModal = React.memo(({
                  setIsManualEco(false);
                  setIsAutoEcoOverride(false);
                  setIs24Hour(true);
-                 setSpecialButtons(DEFAULT_SPECIAL_BUTTONS); // 加入了重置按鈕的邏輯
+                 // 重置可視按鈕
+                 const allIds = [
+                    ...SYSTEM_BUTTONS_CONFIG.singles.map(b => b.id),
+                    ...SYSTEM_BUTTONS_CONFIG.groups.flatMap(g => g.items.map(b => b.id))
+                 ];
+                 setVisibleButtons(allIds);
               }
             }}
             className="px-4 py-2 text-red-500 hover:bg-red-50 rounded-xl flex items-center gap-2 font-bold transition-colors"
@@ -880,7 +1083,7 @@ const SettingsModal = React.memo(({
   );
 });
 
-// ... CircularProgress ...
+// ... CircularProgress ... (保持不變)
 const CircularProgress = ({ progress, size = 300, strokeWidth = 15, children, colorClass }) => {
   const radius = (size - strokeWidth) / 2;
   const circumference = radius * 2 * Math.PI;
@@ -918,7 +1121,7 @@ const CircularProgress = ({ progress, size = 300, strokeWidth = 15, children, co
   );
 };
 
-// ... MessageInput ...
+// ... MessageInput ... (保持不變)
 const MessageInput = ({ isOpen, onClose, message, setMessage }) => {
   if (!isOpen) return null;
   return (
@@ -944,49 +1147,110 @@ const MessageInput = ({ isOpen, onClose, message, setMessage }) => {
   );
 };
 
-// --- ControlDock (Extracted Component) ---
+// --- ControlDock (升級版 - 整合式選單) ---
 const ControlDock = ({ 
   statusMode, 
-  specialButtons, 
   setSpecialStatus, 
   setIsManualEco, 
   isFullscreen, 
   toggleFullScreen, 
   setShowSettings,
   isAutoNapActive,
-  onBroadcastClick // New prop to open broadcast modal
+  onBroadcastClick,
+  visibleButtons // 接收 visibleButtons 狀態
 }) => {
+  const [activeDropdown, setActiveDropdown] = useState(null);
+  
+  // 點擊外部關閉選單
+  useEffect(() => {
+    const handleClickOutside = () => setActiveDropdown(null);
+    if (activeDropdown) {
+        document.addEventListener('click', handleClickOutside);
+    }
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [activeDropdown]);
+
   if (statusMode === 'eco' || statusMode === 'special' || isAutoNapActive) return null;
   const isDark = statusMode === 'off-hours';
-  
+
+  const toggleDropdown = (id) => {
+    setActiveDropdown(prev => prev === id ? null : id);
+  };
+
+  // 過濾可見的按鈕
+  const getVisibleItems = (items) => items.filter(item => visibleButtons.includes(item.id));
+
   return (
-    <div className={`absolute bottom-6 left-1/2 -translate-x-1/2 px-3 py-2 rounded-2xl shadow-2xl border flex items-center gap-2 whitespace-nowrap z-50 transition-all hover:scale-105 backdrop-blur-md max-w-[95vw] overflow-x-auto no-scrollbar ${isDark ? 'bg-slate-800/90 border-slate-700' : 'bg-white/90 border-white/50'}`}>
-      {specialButtons.map(btn => (
+    <div className={`absolute bottom-6 left-1/2 -translate-x-1/2 px-3 py-2 rounded-2xl shadow-2xl border flex items-center gap-2 whitespace-nowrap z-50 transition-all backdrop-blur-md max-w-[95vw] overflow-visible no-scrollbar hover:scale-105 ${isDark ? 'bg-slate-800/90 border-slate-700' : 'bg-white/90 border-white/50'}`}>
+      
+      {/* 自訂廣播按鈕 */}
+      <button 
+        onClick={onBroadcastClick}
+        className={`px-3 py-2 rounded-xl font-bold text-white text-sm shadow-sm transition-all hover:-translate-y-1 bg-gradient-to-r from-pink-500 to-rose-500 flex items-center gap-1`}
+      >
+        <Megaphone size={16} /> 自訂廣播
+      </button>
+
+      <div className={`w-px h-6 mx-1 shrink-0 ${isDark ? 'bg-slate-600' : 'bg-slate-300'}`}></div>
+
+      {/* 單一動作按鈕 (Action Buttons) */}
+      {SYSTEM_BUTTONS_CONFIG.singles.filter(btn => visibleButtons.includes(btn.id)).map(btn => (
         <button 
           key={btn.id} 
-          onClick={() => {
-            // Check for custom broadcast type
-            if (btn.type === 'input') {
-              onBroadcastClick();
-            } else {
-              setSpecialStatus(btn);
-            }
-          }} 
-          className={`px-3 py-2 rounded-xl font-bold text-white text-sm shadow-sm transition-all hover:-translate-y-1 bg-gradient-to-br shrink-0 ${btn.color}`}
+          onClick={() => setSpecialStatus(btn)} 
+          className={`px-3 py-2 rounded-xl font-bold text-white text-sm shadow-sm transition-all hover:-translate-y-1 bg-gradient-to-br flex items-center gap-1 ${btn.color}`}
         >
-          {btn.label}
+          <btn.icon size={16} /> {btn.label}
         </button>
       ))}
+
+      {/* 群組選單按鈕 (Dropdown Groups) */}
+      {SYSTEM_BUTTONS_CONFIG.groups.map(group => {
+          const visibleItems = getVisibleItems(group.items);
+          if (visibleItems.length === 0) return null;
+
+          return (
+            <div key={group.id} className="relative group">
+                <button 
+                    onClick={(e) => { e.stopPropagation(); toggleDropdown(group.id); }}
+                    className={`px-3 py-2 rounded-xl font-bold text-white text-sm shadow-sm transition-all hover:-translate-y-1 flex items-center gap-1 ${group.color} ${activeDropdown === group.id ? 'ring-2 ring-white ring-opacity-50' : ''}`}
+                >
+                    <group.icon size={16} /> {group.label}
+                </button>
+                
+                {/* 下拉選單 (向上彈出) */}
+                {activeDropdown === group.id && (
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-48 bg-white/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/50 p-2 flex flex-col gap-1 animate-in slide-in-from-bottom-2 duration-200 origin-bottom z-50">
+                        {visibleItems.map(item => (
+                            <button
+                                key={item.id}
+                                onClick={() => setSpecialStatus(item)}
+                                className={`w-full text-left px-3 py-3 rounded-xl hover:bg-slate-100 transition-colors flex items-center gap-3 text-slate-700 font-bold`}
+                            >
+                                <div className={`p-2 rounded-full text-white bg-gradient-to-br ${item.color}`}>
+                                    <item.icon size={14} />
+                                </div>
+                                {item.label}
+                            </button>
+                        ))}
+                    </div>
+                )}
+            </div>
+          );
+      })}
+
       <div className={`w-px h-6 mx-1 shrink-0 ${isDark ? 'bg-slate-600' : 'bg-slate-300'}`}></div>
-      <button onClick={(e) => { e.stopPropagation(); setIsManualEco(true); }} className={`p-2 rounded-xl transition-colors shrink-0 ${isDark ? 'text-slate-400 hover:text-white hover:bg-slate-700' : 'text-slate-500 hover:text-blue-600 hover:bg-blue-50'}`} title="時鐘模式 (省電)"><Clock size={20} /></button>
+      
+      {/* 系統控制區 */}
+      <button onClick={(e) => { e.stopPropagation(); setIsManualEco(true); }} className={`p-2 rounded-xl transition-all hover:-translate-y-1 shrink-0 ${isDark ? 'text-slate-400 hover:text-white hover:bg-slate-700' : 'text-slate-500 hover:text-blue-600 hover:bg-blue-50'}`} title="時鐘模式 (省電)"><Clock size={20} /></button>
       <button 
         onClick={toggleFullScreen}
-        className={`p-2 rounded-xl transition-colors shrink-0 ${isDark ? 'text-slate-400 hover:text-white hover:bg-slate-700' : 'text-slate-500 hover:text-blue-600 hover:bg-blue-50'}`}
+        className={`p-2 rounded-xl transition-all hover:-translate-y-1 shrink-0 ${isDark ? 'text-slate-400 hover:text-white hover:bg-slate-700' : 'text-slate-500 hover:text-blue-600 hover:bg-blue-50'}`}
         title={isFullscreen ? "退出全螢幕" : "全螢幕模式"}
       >
         {isFullscreen ? <Minimize size={20} /> : <Maximize size={20} />}
       </button>
-      <button onClick={() => setShowSettings(true)} className={`p-2 rounded-xl shadow-lg transition-colors shrink-0 ${isDark ? 'bg-slate-700 text-white hover:bg-slate-600' : 'bg-slate-800 text-white hover:bg-slate-700'}`}><Settings size={20} /></button>
+      <button onClick={() => setShowSettings(true)} className={`p-2 rounded-xl shadow-lg transition-all hover:-translate-y-1 shrink-0 ${isDark ? 'bg-slate-700 text-white hover:bg-slate-600' : 'bg-slate-800 text-white hover:bg-slate-700'}`}><Settings size={20} /></button>
     </div>
   );
 };
@@ -1089,25 +1353,34 @@ const TimelineSidebar = ({
   );
 };
 
-// --- App ---
-const App = () => {
+// ... App ... (主程式)
+const ClassroomDashboardV2 = () => {
   const [timeSlots, setTimeSlots] = useState(() => JSON.parse(localStorage.getItem('timeSlots')) || DEFAULT_TIME_SLOTS);
   const [schedule, setSchedule] = useState(() => JSON.parse(localStorage.getItem('schedule')) || DEFAULT_SCHEDULE);
   const [subjectHints, setSubjectHints] = useState(() => JSON.parse(localStorage.getItem('subjectHints')) || DEFAULT_SUBJECT_HINTS);
-  const [specialButtons, setSpecialButtons] = useState(() => JSON.parse(localStorage.getItem('specialButtons')) || DEFAULT_SPECIAL_BUTTONS);
-  
   const [is24Hour, setIs24Hour] = useState(() => {
     const saved = localStorage.getItem('is24Hour');
     return saved !== null ? JSON.parse(saved) : true;
   });
-  
   const [dayTypes, setDayTypes] = useState(() => JSON.parse(localStorage.getItem('dayTypes')) || DEFAULT_DAY_TYPES);
+
+  // 新增狀態：自訂廣播預設值 & 可視按鈕列表
+  const [customPresets, setCustomPresets] = useState(() => JSON.parse(localStorage.getItem('customPresets')) || DEFAULT_CUSTOM_BROADCASTS);
+  const [visibleButtons, setVisibleButtons] = useState(() => {
+      const saved = localStorage.getItem('visibleButtons');
+      if (saved) return JSON.parse(saved);
+      // 預設全選
+      return [
+          ...SYSTEM_BUTTONS_CONFIG.singles.map(b => b.id),
+          ...SYSTEM_BUTTONS_CONFIG.groups.flatMap(g => g.items.map(b => b.id))
+      ];
+  });
 
   const [teacherMessage, setTeacherMessage] = useState('');
   const [isEditingMessage, setIsEditingMessage] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showTools, setShowTools] = useState(false); 
-  const [showBroadcastInput, setShowBroadcastInput] = useState(false); // New state for broadcast modal
+  const [showBroadcastInput, setShowBroadcastInput] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false); 
   
   const [now, setNow] = useState(new Date());
@@ -1127,10 +1400,9 @@ const App = () => {
 
   const [saverPos, setSaverPos] = useState({ x: 0, y: 0 });
 
-  // Keyboard Shortcuts
+  // Keyboard Shortcuts (保持不變)
   useEffect(() => {
     const handleKeyDown = (e) => {
-      // 如果正在編輯訊息，或者打開了設定/廣播，就不攔截鍵盤
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
       if (showSettings || showBroadcastInput || isEditingMessage) return;
 
@@ -1150,13 +1422,12 @@ const App = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [showSettings, showTools, showBroadcastInput, specialStatus, isEditingMessage, dismissedNap, statusMode]);
 
+  // Active Time Slots Logic (保持不變)
   const activeTimeSlots = useMemo(() => {
     const day = now.getDay();
-    // 檢查是否為週末
-    if (day === 0 || day === 6) return [];
+    if (day === 0 || day === 6) return []; // 週末為空
 
     const isHalfDay = dayTypes[day] === 'half';
-
     if (!isHalfDay) return timeSlots;
 
     const halfDaySlots = [];
@@ -1165,12 +1436,10 @@ const App = () => {
 
     for (let slot of timeSlots) {
        if (isDismissed) continue;
-
        if (slot.id === 'break3') {
           halfDaySlots.push({ ...slot, name: '打掃時間' }); 
           continue;
        }
-
        if (getSecondsFromTime(slot.start) >= getSecondsFromTime(p5Start)) {
           halfDaySlots.push({ 
             id: 'after', 
@@ -1185,17 +1454,15 @@ const App = () => {
        halfDaySlots.push(slot);
     }
     return halfDaySlots;
-
   }, [timeSlots, dayTypes, now.getDay()]);
 
   const isNapTime = currentSlot?.name.includes('午休') || currentSlot?.id === 'nap';
   const isDismissal = currentSlot?.name.includes('放學') || currentSlot?.id === 'after';
   const isAutoNapActive = (isNapTime || isDismissal) && !dismissedNap && statusMode === 'break';
 
+  // Fullscreen, Timer, Storage Effects (保持不變)
   useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
+    const handleFullscreenChange = () => setIsFullscreen(!!document.fullscreenElement);
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
@@ -1204,67 +1471,56 @@ const App = () => {
     if (!document.fullscreenElement) {
       document.documentElement.requestFullscreen().catch((e) => console.log(e));
     } else {
-      if (document.exitFullscreen) {
-        document.exitFullscreen();
-      }
+      if (document.exitFullscreen) document.exitFullscreen();
     }
   };
   
   useEffect(() => {
-    const timer = setInterval(() => {
-      setNow(new Date(Date.now() + timeOffset));
-    }, 1000);
+    const timer = setInterval(() => setNow(new Date(Date.now() + timeOffset)), 1000);
     return () => clearInterval(timer);
   }, [timeOffset]);
 
   useEffect(() => {
     if (statusMode === 'eco') {
-      const interval = setInterval(() => {
-        setSaverPos({
-          x: Math.floor(Math.random() * 100 - 50),
-          y: Math.floor(Math.random() * 100 - 50)
-        });
-      }, 60000);
+      const interval = setInterval(() => setSaverPos({ x: Math.floor(Math.random() * 100 - 50), y: Math.floor(Math.random() * 100 - 50) }), 60000);
       return () => clearInterval(interval);
     }
   }, [statusMode]);
 
+  // 新增 customPresets 和 visibleButtons 的儲存
   useEffect(() => {
     localStorage.setItem('timeSlots', JSON.stringify(timeSlots));
     localStorage.setItem('schedule', JSON.stringify(schedule));
     localStorage.setItem('subjectHints', JSON.stringify(subjectHints));
-    localStorage.setItem('specialButtons', JSON.stringify(specialButtons));
     localStorage.setItem('is24Hour', JSON.stringify(is24Hour));
     localStorage.setItem('dayTypes', JSON.stringify(dayTypes));
-  }, [timeSlots, schedule, subjectHints, specialButtons, is24Hour, dayTypes]);
+    localStorage.setItem('customPresets', JSON.stringify(customPresets));
+    localStorage.setItem('visibleButtons', JSON.stringify(visibleButtons));
+  }, [timeSlots, schedule, subjectHints, customPresets, visibleButtons, is24Hour, dayTypes]);
 
   useEffect(() => {
-    // 只有在【沒有打開設定視窗】的時候，才允許自動切換模式
-    // 這樣可以防止調整時間時，系統自動跳轉到其他畫面干擾操作
     if (!showSettings) {
       setIsAutoEcoOverride(false);
       setDismissedNap(false);
     }
   }, [currentSlot?.id, showSettings]);
 
+  // Main Status Logic (保持不變)
   useEffect(() => {
     if (specialStatus) {
       setStatusMode('special');
       return;
     }
-
     if (isManualEco) {
       setStatusMode('eco');
       return;
     }
 
     const currentTimeSec = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
-    
     let foundSlot = null;
     let nextClass = null;
     const sortedSlots = [...activeTimeSlots].sort((a, b) => getSecondsFromTime(a.start) - getSecondsFromTime(b.start));
 
-    // 如果 activeTimeSlots 為空（例如週末），則直接視為 Off-hours
     if (activeTimeSlots.length === 0) {
       setStatusMode('off-hours');
       setCurrentSlot(null);
@@ -1300,33 +1556,23 @@ const App = () => {
     if (foundSlot.type === 'class') {
       const startSec = getSecondsFromTime(foundSlot.start);
       const elapsed = currentTimeSec - startSec;
-      
-      if (elapsed > 180 && !isAutoEcoOverride) {
-        setStatusMode('eco');
-      } else {
-        setStatusMode('class');
-      }
+      if (elapsed > 180 && !isAutoEcoOverride) setStatusMode('eco');
+      else setStatusMode('class');
     } else {
       const startSec = getSecondsFromTime(foundSlot.start);
       const endSec = getSecondsFromTime(foundSlot.end);
       const total = endSec - startSec;
       const remain = endSec - currentTimeSec;
-      
       setSecondsRemaining(remain);
       setProgress(Math.max(0, Math.min(100, (remain / total) * 100)));
-
-      if (remain <= 60 && remain > 0) {
-        setStatusMode('pre-bell');
-      } else {
-        setStatusMode('break');
-      }
+      if (remain <= 60 && remain > 0) setStatusMode('pre-bell');
+      else setStatusMode('break');
     }
   }, [now, activeTimeSlots, specialStatus, isManualEco]);
 
+  // Helper Functions (保持不變)
   const getNextSubjectName = () => {
-    if (currentSlot && (currentSlot.name.includes('打掃') || currentSlot.id === 'cleaning')) {
-       return currentSlot.name;
-    }
+    if (currentSlot && (currentSlot.name.includes('打掃') || currentSlot.id === 'cleaning')) return currentSlot.name;
     if (!nextSlot) return '放學';
     const daySchedule = schedule[now.getDay()];
     if (!daySchedule) return '無課表';
@@ -1334,12 +1580,8 @@ const App = () => {
   };
 
   const getSystemHint = () => {
-    if (currentSlot && (currentSlot.name.includes('打掃') || currentSlot.id === 'cleaning')) {
-       return subjectHints['全天打掃'] || subjectHints['打掃時間'] || '請拿起掃具，認真打掃環境，保持整潔';
-    }
-    if (currentSlot && (currentSlot.name.includes('午餐') || currentSlot.name.includes('午休') || currentSlot.name.includes('放學'))) {
-       return subjectHints[currentSlot.name] || '請保持安靜';
-    }
+    if (currentSlot && (currentSlot.name.includes('打掃') || currentSlot.id === 'cleaning')) return subjectHints['全天打掃'] || subjectHints['打掃時間'] || '請拿起掃具，認真打掃環境，保持整潔';
+    if (currentSlot && (currentSlot.name.includes('午餐') || currentSlot.name.includes('午休') || currentSlot.name.includes('放學'))) return subjectHints[currentSlot.name] || '請保持安靜';
     const subject = getNextSubjectName();
     return subjectHints[subject] || subjectHints['default'];
   };
@@ -1355,12 +1597,13 @@ const App = () => {
     const month = (date.getMonth() + 1).toString().padStart(2, '0');
     const day = date.getDate().toString().padStart(2, '0');
     const week = WEEKDAYS[date.getDay()];
-    // 判斷是否為假日
     const isWeekend = date.getDay() === 0 || date.getDay() === 6;
     const dayType = isWeekend ? '假日' : (dayTypes[date.getDay()] === 'full' ? '全天' : '半天');
     return `民國${rocYear}年${month}月${day}日 星期${week} (${dayType})`;
   };
 
+  // Views (BreakView, ClassView, OffHoursView, EcoView, SpecialView) - 保持不變，略過重複代碼
+  // ... (這裡應保留原本所有的 View Components) ...
   const BreakView = () => {
     const isPreBell = statusMode === 'pre-bell';
     const isNap = currentSlot?.name.includes('午休'); 
@@ -1369,30 +1612,11 @@ const App = () => {
     const isCleaning = currentSlot && (currentSlot.name.includes('打掃') || currentSlot.id === 'cleaning');
     const isLunch = currentSlot && currentSlot.name.includes('午餐');
     
-    // 自動排程的午休或放學模式：如果沒有被手動關閉，顯示全螢幕覆蓋
     if ((isNap || isDismissal) && !dismissedNap) {
       const title = isNap ? "午休時間" : "放學時間";
       const subtext = isNap ? "Shhh... 請保持安靜，好好休息" : "請收拾書包，準備回家";
       const icon = isNap ? Moon : Home;
-
-      return (
-        <QuietModeView 
-          title={title}
-          subtext={subtext}
-          icon={icon}
-          onClose={() => setDismissedNap(true)} // 點擊關閉，暫時解除全螢幕，回到主畫面
-          centerContent={
-             <div className="flex flex-col items-center">
-                 <div className="text-8xl font-mono font-bold text-slate-200 drop-shadow-2xl">
-                    {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: !is24Hour })}
-                 </div>
-                 <div className="mt-8 bg-white/10 backdrop-blur-md px-8 py-4 rounded-full border border-white/10 text-indigo-200">
-                     <span className="mr-4">{isNap ? '💤' : '🏠'}</span>{getSystemHint()}
-                 </div>
-             </div>
-          }
-        />
-      );
+      return <QuietModeView title={title} subtext={subtext} icon={icon} onClose={() => setDismissedNap(true)} centerContent={<div className="flex flex-col items-center"><div className="text-8xl font-mono font-bold text-slate-200 drop-shadow-2xl">{now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: !is24Hour })}</div><div className="mt-8 bg-white/10 backdrop-blur-md px-8 py-4 rounded-full border border-white/10 text-indigo-200"><span className="mr-4">{isNap ? '💤' : '🏠'}</span>{getSystemHint()}</div></div>} />;
     }
 
     return (
@@ -1401,173 +1625,45 @@ const App = () => {
         <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-indigo-200/30 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2 pointer-events-none"></div>
         <div className="h-full flex flex-col">
           <div className="flex justify-between items-start p-8">
-            <div className="bg-white/60 backdrop-blur-sm px-6 py-3 rounded-2xl shadow-sm border border-white/50">
-              <span className="text-slate-500 font-bold mr-2">
-                {isCleaning ? '目前時段' : (isLunch ? '目前時段' : (isNap ? '目前時段' : (isDismissal ? '目前時段' : '下一節準備')))}
-              </span>
-              <span className="text-2xl font-bold text-slate-800">
-                {isLunch ? '午餐時間' : (isNap ? '午休時間' : (isDismissal ? '放學時間' : getNextSubjectName()))}
-              </span>
-            </div>
+            <div className="bg-white/60 backdrop-blur-sm px-6 py-3 rounded-2xl shadow-sm border border-white/50"><span className="text-slate-500 font-bold mr-2">{isCleaning ? '目前時段' : (isLunch ? '目前時段' : (isNap ? '目前時段' : (isDismissal ? '目前時段' : '下一節準備')))}</span><span className="text-2xl font-bold text-slate-800">{isLunch ? '午餐時間' : (isNap ? '午休時間' : (isDismissal ? '放學時間' : getNextSubjectName()))}</span></div>
             {timeOffset !== 0 && <div className="bg-red-100 text-red-600 px-4 py-2 rounded-full text-sm font-bold animate-pulse border border-red-200">⚠️ 時間模擬模式中</div>}
           </div>
           <div className="flex-1 flex flex-col md:flex-row items-center justify-center gap-12 px-8 pb-8">
-            <div className={`relative transition-all duration-500 ${isPreBell ? 'scale-110' : ''}`}>
-              <CircularProgress progress={progress} size={400} strokeWidth={24} colorClass={progressColor}>
-                <div className="text-center flex flex-col items-center">
-                   <div className={`text-[7rem] font-bold font-mono tracking-tighter leading-none ${isPreBell ? 'text-red-600 animate-pulse' : 'text-slate-700'}`}>{formatCountdown(secondsRemaining)}</div>
-                   <div className="text-slate-400 font-medium mt-2 tracking-widest uppercase">{isPreBell ? '預備鐘響' : 'REMAINING'}</div>
-                </div>
-              </CircularProgress>
-            </div>
+            <div className={`relative transition-all duration-500 ${isPreBell ? 'scale-110' : ''}`}><CircularProgress progress={progress} size={400} strokeWidth={24} colorClass={progressColor}><div className="text-center flex flex-col items-center"><div className={`text-[7rem] font-bold font-mono tracking-tighter leading-none ${isPreBell ? 'text-red-600 animate-pulse' : 'text-slate-700'}`}>{formatCountdown(secondsRemaining)}</div><div className="text-slate-400 font-medium mt-2 tracking-widest uppercase">{isPreBell ? '預備鐘響' : 'REMAINING'}</div></div></CircularProgress></div>
             <div className="max-w-xl w-full flex flex-col gap-6">
-              {teacherMessage ? (
-                <div onClick={() => setIsEditingMessage(true)} className="bg-yellow-200 p-6 shadow-lg transform rotate-1 hover:rotate-0 transition-transform cursor-pointer relative group" style={{ fontFamily: 'cursive, sans-serif' }}>
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-32 h-8 bg-yellow-300/50 backdrop-blur-sm rotate-1"></div>
-                  <div className="flex justify-between items-start mb-2 opacity-50">
-                    <span className="text-xs font-bold uppercase tracking-widest text-yellow-800">MEMO</span>
-                    <Edit3 size={16} className="text-yellow-700 opacity-0 group-hover:opacity-100 transition-opacity"/>
-                  </div>
-                  <p className="text-3xl font-bold text-slate-800 leading-snug break-words">{teacherMessage}</p>
-                </div>
-              ) : (!isPreBell && (
-                  <button onClick={() => setIsEditingMessage(true)} className="group flex items-center justify-center gap-2 p-4 rounded-2xl border-2 border-dashed border-slate-300 hover:border-yellow-400 hover:bg-yellow-50 transition-all">
-                    <Edit3 className="text-slate-400 group-hover:text-yellow-600" /><span className="text-slate-400 font-bold group-hover:text-yellow-700">新增便利貼留言</span>
-                  </button>
-              ))}
-              <div className={`bg-white/80 backdrop-blur-xl p-8 rounded-3xl shadow-xl border border-white/50 transform transition-all duration-500 ${isPreBell ? 'opacity-50 blur-[2px] scale-95' : 'opacity-100 scale-100'}`}>
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="p-3 bg-blue-100 rounded-2xl text-blue-600"><BookOpen size={32} /></div>
-                  <div className="text-lg text-slate-500 font-bold">
-                    {isCleaning ? '打掃提醒' : (isLunch ? '用餐提醒' : (isNap ? '午休提醒' : (isDismissal ? '放學提醒' : '請準備')))}
-                  </div>
-                </div>
-                <div className="text-3xl font-bold text-slate-800 leading-normal">{getSystemHint()}</div>
-              </div>
-              {isPreBell && (
-                <div className="bg-red-600 text-white p-8 rounded-3xl shadow-2xl border-4 border-red-400 animate-bounce-subtle flex items-center justify-center text-center">
-                   <div><h3 className="text-4xl font-bold mb-2">請回座位</h3><p className="text-xl opacity-90">靜候老師上課</p></div>
-                </div>
-              )}
+              {teacherMessage ? (<div onClick={() => setIsEditingMessage(true)} className="bg-yellow-200 p-6 shadow-lg transform rotate-1 hover:rotate-0 transition-transform cursor-pointer relative group" style={{ fontFamily: 'cursive, sans-serif' }}><div className="absolute -top-3 left-1/2 -translate-x-1/2 w-32 h-8 bg-yellow-300/50 backdrop-blur-sm rotate-1"></div><div className="flex justify-between items-start mb-2 opacity-50"><span className="text-xs font-bold uppercase tracking-widest text-yellow-800">MEMO</span><Edit3 size={16} className="text-yellow-700 opacity-0 group-hover:opacity-100 transition-opacity"/></div><p className="text-3xl font-bold text-slate-800 leading-snug break-words">{teacherMessage}</p></div>) : (!isPreBell && (<button onClick={() => setIsEditingMessage(true)} className="group flex items-center justify-center gap-2 p-4 rounded-2xl border-2 border-dashed border-slate-300 hover:border-yellow-400 hover:bg-yellow-50 transition-all"><Edit3 className="text-slate-400 group-hover:text-yellow-600" /><span className="text-slate-400 font-bold group-hover:text-yellow-700">新增便利貼留言</span></button>))}
+              <div className={`bg-white/80 backdrop-blur-xl p-8 rounded-3xl shadow-xl border border-white/50 transform transition-all duration-500 ${isPreBell ? 'opacity-50 blur-[2px] scale-95' : 'opacity-100 scale-100'}`}><div className="flex items-center gap-4 mb-4"><div className="p-3 bg-blue-100 rounded-2xl text-blue-600"><BookOpen size={32} /></div><div className="text-lg text-slate-500 font-bold">{isCleaning ? '打掃提醒' : (isLunch ? '用餐提醒' : (isNap ? '午休提醒' : (isDismissal ? '放學提醒' : '請準備')))}</div></div><div className="text-3xl font-bold text-slate-800 leading-normal">{getSystemHint()}</div></div>
+              {isPreBell && (<div className="bg-red-600 text-white p-8 rounded-3xl shadow-2xl border-4 border-red-400 animate-bounce-subtle flex items-center justify-center text-center"><div><h3 className="text-4xl font-bold mb-2">請回座位</h3><p className="text-xl opacity-90">靜候老師上課</p></div></div>)}
             </div>
           </div>
         </div>
       </div>
     );
   };
-
-  const ClassView = () => (
-    <div className="flex-1 bg-slate-50 flex items-center justify-center p-8">
-      <div className="max-w-5xl w-full bg-white rounded-[3rem] shadow-2xl p-16 text-center border-4 border-slate-100 relative overflow-hidden">
-         <div className="absolute top-0 left-0 w-full h-4 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500"></div>
-         <div className="mb-8 inline-flex items-center justify-center w-24 h-24 rounded-full bg-indigo-50 text-indigo-600 mb-6"><Bell size={48} /></div>
-         <h1 className="text-7xl font-bold text-slate-800 mb-8 tracking-tight">上課了</h1>
-         <div className="text-3xl text-slate-500 mb-12 font-medium">現在是 <span className="text-indigo-600 font-bold mx-2">{schedule[now.getDay()]?.[currentSlot?.id] || currentSlot?.name}</span> 時間</div>
-         <div className="bg-slate-50 rounded-2xl p-8 max-w-2xl mx-auto"><p className="text-2xl text-slate-700 leading-relaxed">請拿出課本與學用品<br/>保持安靜，專心聽講</p></div>
-      </div>
-    </div>
-  );
-
-  const OffHoursView = () => (
-    <div className="flex-1 bg-slate-900 relative overflow-hidden flex flex-col items-center justify-center p-8 transition-colors duration-1000">
-      <div className="absolute top-10 left-20 w-2 h-2 bg-white rounded-full opacity-20 animate-pulse"></div>
-      <div className="absolute top-1/4 right-1/4 w-1 h-1 bg-white rounded-full opacity-40 animate-pulse delay-700"></div>
-      <div className="absolute bottom-1/3 left-1/3 w-1.5 h-1.5 bg-white rounded-full opacity-30 animate-pulse delay-300"></div>
-      <div className="absolute top-0 inset-x-0 h-64 bg-gradient-to-b from-slate-800 to-transparent opacity-50 pointer-events-none"></div>
-      <div className="text-center z-10">
-         <div className="mb-8"><div className="text-xl text-blue-300 font-medium mb-2 tracking-widest uppercase">Off-Hours</div><h2 className="text-6xl font-bold text-white tracking-tight drop-shadow-lg">非上課時段</h2></div>
-         <div className="font-mono text-[8rem] leading-none text-slate-200 font-bold drop-shadow-2xl">{now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: !is24Hour })}</div>
-         <div className="text-2xl text-slate-400 mt-4 font-light">{formatROCDate(now)}</div>
-         <div className="mt-12 flex items-center justify-center gap-4">
-            <div className="px-6 py-3 rounded-full bg-slate-800/50 border border-slate-700 text-slate-400 backdrop-blur-sm flex items-center gap-2"><Moon size={18} /><span>系統待機中</span></div>
-            <div className="px-6 py-3 rounded-full bg-blue-900/30 border border-blue-800/50 text-blue-300 backdrop-blur-sm flex items-center gap-2"><Sun size={18} /><span>預計下次啟動：明天 07:20</span></div>
-         </div>
-      </div>
-    </div>
-  );
-
-  const EcoView = () => (
-    <div 
-      className="flex-1 bg-black relative overflow-hidden cursor-pointer w-full h-full" 
-      onClick={() => {
-        setIsManualEco(false);
-        setIsAutoEcoOverride(true);
-      }} 
-    >
-       <div 
-         className="absolute transition-all duration-[2000ms] flex flex-col items-center"
-         style={{ transform: `translate(${saverPos.x}px, ${saverPos.y}px)`, top: '50%', left: '50%', marginTop: '-150px', marginLeft: '-300px', width: '600px' }}
-       >
-          <div className="text-[12rem] font-mono font-bold text-slate-800 leading-none select-none">{now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: !is24Hour })}</div>
-          <div className="mt-4 text-2xl text-slate-900 font-medium border px-4 py-1 rounded-full border-slate-900">{schedule[now.getDay()]?.[currentSlot?.id] || (currentSlot ? '上課中' : '休息中')}</div>
-          <div className="mt-8 text-slate-800 opacity-20 text-sm">點擊畫面喚醒</div>
-       </div>
-    </div>
-  );
-
+  const ClassView = () => (<div className="flex-1 bg-slate-50 flex items-center justify-center p-8"><div className="max-w-5xl w-full bg-white rounded-[3rem] shadow-2xl p-16 text-center border-4 border-slate-100 relative overflow-hidden"><div className="absolute top-0 left-0 w-full h-4 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500"></div><div className="mb-8 inline-flex items-center justify-center w-24 h-24 rounded-full bg-indigo-50 text-indigo-600 mb-6"><Bell size={48} /></div><h1 className="text-7xl font-bold text-slate-800 mb-8 tracking-tight">上課了</h1><div className="text-3xl text-slate-500 mb-12 font-medium">現在是 <span className="text-indigo-600 font-bold mx-2">{schedule[now.getDay()]?.[currentSlot?.id] || currentSlot?.name}</span> 時間</div><div className="bg-slate-50 rounded-2xl p-8 max-w-2xl mx-auto"><p className="text-2xl text-slate-700 leading-relaxed">請拿出課本與學用品<br/>保持安靜，專心聽講</p></div></div></div>);
+  const OffHoursView = () => (<div className="flex-1 bg-slate-900 relative overflow-hidden flex flex-col items-center justify-center p-8 transition-colors duration-1000"><div className="absolute top-10 left-20 w-2 h-2 bg-white rounded-full opacity-20 animate-pulse"></div><div className="absolute top-1/4 right-1/4 w-1 h-1 bg-white rounded-full opacity-40 animate-pulse delay-700"></div><div className="absolute bottom-1/3 left-1/3 w-1.5 h-1.5 bg-white rounded-full opacity-30 animate-pulse delay-300"></div><div className="absolute top-0 inset-x-0 h-64 bg-gradient-to-b from-slate-800 to-transparent opacity-50 pointer-events-none"></div><div className="text-center z-10"><div className="mb-8"><div className="text-xl text-blue-300 font-medium mb-2 tracking-widest uppercase">Off-Hours</div><h2 className="text-6xl font-bold text-white tracking-tight drop-shadow-lg">非上課時段</h2></div><div className="font-mono text-[8rem] leading-none text-slate-200 font-bold drop-shadow-2xl">{now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: !is24Hour })}</div><div className="text-2xl text-slate-400 mt-4 font-light">{formatROCDate(now)}</div><div className="mt-12 flex items-center justify-center gap-4"><div className="px-6 py-3 rounded-full bg-slate-800/50 border border-slate-700 text-slate-400 backdrop-blur-sm flex items-center gap-2"><Moon size={18} /><span>系統待機中</span></div><div className="px-6 py-3 rounded-full bg-blue-900/30 border border-blue-800/50 text-blue-300 backdrop-blur-sm flex items-center gap-2"><Sun size={18} /><span>預計下次啟動：明天 07:20</span></div></div></div></div>);
+  const EcoView = () => (<div className="flex-1 bg-black relative overflow-hidden cursor-pointer w-full h-full" onClick={() => {setIsManualEco(false);setIsAutoEcoOverride(true);}}><div className="absolute transition-all duration-[2000ms] flex flex-col items-center" style={{ transform: `translate(${saverPos.x}px, ${saverPos.y}px)`, top: '50%', left: '50%', marginTop: '-150px', marginLeft: '-300px', width: '600px' }}><div className="text-[12rem] font-mono font-bold text-slate-800 leading-none select-none">{now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: !is24Hour })}</div><div className="mt-4 text-2xl text-slate-900 font-medium border px-4 py-1 rounded-full border-slate-900">{schedule[now.getDay()]?.[currentSlot?.id] || (currentSlot ? '上課中' : '休息中')}</div><div className="mt-8 text-slate-800 opacity-20 text-sm">點擊畫面喚醒</div></div></div>);
+  
   const SpecialView = () => {
     if (!specialStatus) return null;
-
-    if (specialStatus.type === 'dark') {
-      const isBook = specialStatus.icon === 'book';
-      const hintText = subjectHints[specialStatus.message] || '進行中...';
+    if (specialStatus.type === 'dark' || specialStatus.type === 'alert') {
+      const isBook = specialStatus.icon === BookOpen;
+      const isMeeting = specialStatus.icon === UserX;
+      const isNap = specialStatus.icon === Moon;
+      const isAlert = specialStatus.type === 'alert';
       
-      return (
-        <QuietModeView 
-          title={specialStatus.message}
-          subtext={specialStatus.sub}
-          icon={isBook ? BookOpen : Moon}
-          onClose={() => setSpecialStatus(null)}
-          centerContent={
-             <div className="flex flex-col items-center">
-                 <div className="text-8xl font-mono font-bold text-slate-200 drop-shadow-2xl">
-                    {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: !is24Hour })}
-                 </div>
-                 <div className="mt-8 bg-white/10 backdrop-blur-md px-8 py-4 rounded-full border border-white/10 text-indigo-200">
-                     <span className="mr-4">{isBook ? '📖' : '💤'}</span>{hintText}
-                 </div>
-             </div>
-          }
-        />
-      );
+      const bgColor = isAlert ? 'bg-red-900' : 'bg-slate-900';
+      
+      return <QuietModeView title={specialStatus.message} subtext={specialStatus.sub} icon={specialStatus.icon} onClose={() => setSpecialStatus(null)} centerContent={<div className="flex flex-col items-center"><div className="text-8xl font-mono font-bold text-slate-200 drop-shadow-2xl">{now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: !is24Hour })}</div><div className="mt-8 bg-white/10 backdrop-blur-md px-8 py-4 rounded-full border border-white/10 text-indigo-200"><span className="mr-4">{isBook ? '📖' : (isNap ? '💤' : (isMeeting ? '🚫' : (isAlert ? '⚠️' : '📢')))}</span>{subjectHints[specialStatus.message] || specialStatus.sub}</div></div>} />;
     }
-
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900 p-8">
-        <div className={`max-w-6xl w-full aspect-video rounded-[3rem] shadow-2xl flex flex-col items-center justify-center text-center p-12 bg-gradient-to-br text-white relative overflow-hidden ${specialStatus.color || 'from-blue-600 to-indigo-800'}`}>
-            <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
-            {specialStatus.id === 6 ? <BedDouble size={100} className="mb-8 opacity-90" /> : (specialStatus.id === 99 ? <Megaphone size={100} className="mb-8 opacity-90 animate-bounce" /> : <MapPin size={100} className="mb-8 opacity-90 animate-bounce" />)}
-            <h1 className="text-[7rem] font-bold mb-4 leading-tight drop-shadow-md">{specialStatus.message}</h1>
-            {specialStatus.sub && <p className="text-4xl opacity-90 font-medium bg-white/20 px-8 py-2 rounded-full backdrop-blur-sm">{specialStatus.sub}</p>}
-            <div className="absolute bottom-12 right-12 text-2xl font-mono opacity-60">現在時間 {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: !is24Hour })}</div>
-            <button onClick={() => setSpecialStatus(null)} className="absolute top-12 right-12 p-4 bg-white/10 hover:bg-white/20 rounded-full transition-colors"><X size={32} /></button>
-        </div>
-      </div>
-    );
+    const Icon = specialStatus.icon;
+    return <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900 p-8"><div className={`max-w-6xl w-full aspect-video rounded-[3rem] shadow-2xl flex flex-col items-center justify-center text-center p-12 bg-gradient-to-br text-white relative overflow-hidden ${specialStatus.color || 'from-blue-600 to-indigo-800'}`}><div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div><Icon size={100} className="mb-8 opacity-90 animate-bounce" /><h1 className="text-[7rem] font-bold mb-4 leading-tight drop-shadow-md">{specialStatus.message}</h1>{specialStatus.sub && <p className="text-4xl opacity-90 font-medium bg-white/20 px-8 py-2 rounded-full backdrop-blur-sm">{specialStatus.sub}</p>}<div className="absolute bottom-12 right-12 text-2xl font-mono opacity-60">現在時間 {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: !is24Hour })}</div><button onClick={() => setSpecialStatus(null)} className="absolute top-12 right-12 p-4 bg-white/10 hover:bg-white/20 rounded-full transition-colors"><X size={32} /></button></div></div>;
   };
 
   return (
     <div className="flex h-screen w-screen overflow-hidden font-sans text-slate-800 bg-slate-200 selection:bg-indigo-200">
-      {/* 隱藏捲軸的 CSS */}
-      <style>{`
-        .no-scrollbar::-webkit-scrollbar {
-          display: none;
-        }
-        .no-scrollbar {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-        }
-      `}</style>
-
-      {statusMode !== 'eco' && statusMode !== 'off-hours' && <TimelineSidebar 
-        now={now} 
-        schedule={schedule} 
-        activeTimeSlots={activeTimeSlots} 
-        currentSlot={currentSlot} 
-        nextSlot={nextSlot} 
-        is24Hour={is24Hour} 
-        dayTypes={dayTypes} 
-      />}
+      <style>{`.no-scrollbar::-webkit-scrollbar { display: none; } .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }`}</style>
+      {statusMode !== 'eco' && statusMode !== 'off-hours' && <TimelineSidebar now={now} schedule={schedule} activeTimeSlots={activeTimeSlots} currentSlot={currentSlot} nextSlot={nextSlot} is24Hour={is24Hour} dayTypes={dayTypes} />}
       <div className="flex-1 flex flex-col relative">
         {statusMode === 'loading' && <div className="flex-1 flex items-center justify-center">Loading...</div>}
         {(statusMode === 'break' || statusMode === 'pre-bell') && <BreakView />}
@@ -1575,63 +1671,15 @@ const App = () => {
         {statusMode === 'eco' && <EcoView />}
         {statusMode === 'off-hours' && <OffHoursView />}
         {statusMode === 'special' && specialStatus && <SpecialView />}
-        
-        {/* ControlDock with updated logic */}
-        <ControlDock 
-          statusMode={statusMode}
-          specialButtons={specialButtons}
-          setSpecialStatus={setSpecialStatus}
-          setIsManualEco={setIsManualEco}
-          isFullscreen={isFullscreen}
-          toggleFullScreen={toggleFullScreen}
-          setShowSettings={setShowSettings}
-          isAutoNapActive={isAutoNapActive}
-          onBroadcastClick={() => setShowBroadcastInput(true)}
-        />
-        
-        {/* Tools Button Trigger - Only show when NOT in special modes */}
-        {!(statusMode === 'eco' || statusMode === 'special' || isAutoNapActive) && (
-           <div className="absolute bottom-6 right-6 z-50">
-              <button 
-                onClick={() => setShowTools(true)}
-                className="p-4 bg-white/90 backdrop-blur shadow-xl rounded-2xl text-slate-600 hover:text-blue-600 hover:scale-110 transition-all border border-white/50"
-                title="教室小工具"
-              >
-                <Box size={24} />
-              </button>
-           </div>
-        )}
+        <ControlDock statusMode={statusMode} setSpecialStatus={setSpecialStatus} setIsManualEco={setIsManualEco} isFullscreen={isFullscreen} toggleFullScreen={toggleFullScreen} setShowSettings={setShowSettings} isAutoNapActive={isAutoNapActive} onBroadcastClick={() => setShowBroadcastInput(true)} visibleButtons={visibleButtons} />
+        {!(statusMode === 'eco' || statusMode === 'special' || isAutoNapActive) && (<div className="absolute bottom-6 right-6 z-50"><button onClick={() => setShowTools(true)} className="p-4 bg-white/90 backdrop-blur shadow-xl rounded-2xl text-slate-600 hover:text-blue-600 hover:scale-110 transition-all border border-white/50" title="教室小工具"><Box size={24} /></button></div>)}
       </div>
-      <SettingsModal 
-        isOpen={showSettings} 
-        onClose={() => setShowSettings(false)}
-        timeSlots={timeSlots}
-        setTimeSlots={setTimeSlots}
-        schedule={schedule}
-        setSchedule={setSchedule}
-        subjectHints={subjectHints}
-        setSubjectHints={setSubjectHints}
-        dayTypes={dayTypes}
-        setDayTypes={setDayTypes}
-        timeOffset={timeOffset}
-        setTimeOffset={setTimeOffset}
-        setIsManualEco={setIsManualEco}
-        setIsAutoEcoOverride={setIsAutoEcoOverride}
-        setNow={setNow} // Pass setNow to SettingsModal
-        is24Hour={is24Hour}
-        setIs24Hour={setIs24Hour}
-        setSpecialButtons={setSpecialButtons} // 傳遞更新按鈕的 function
-        now={now} // 傳遞 now
-      />
+      <SettingsModal isOpen={showSettings} onClose={() => setShowSettings(false)} timeSlots={timeSlots} setTimeSlots={setTimeSlots} schedule={schedule} setSchedule={setSchedule} subjectHints={subjectHints} setSubjectHints={setSubjectHints} dayTypes={dayTypes} setDayTypes={setDayTypes} timeOffset={timeOffset} setTimeOffset={setTimeOffset} setIsManualEco={setIsManualEco} setIsAutoEcoOverride={setIsAutoEcoOverride} setNow={setNow} is24Hour={is24Hour} setIs24Hour={setIs24Hour} now={now} visibleButtons={visibleButtons} setVisibleButtons={setVisibleButtons} />
       <ToolsModal isOpen={showTools} onClose={() => setShowTools(false)} />
-      <BroadcastInputModal 
-        isOpen={showBroadcastInput} 
-        onClose={() => setShowBroadcastInput(false)}
-        onConfirm={(title, sub) => setSpecialStatus({ message: title, sub: sub, color: 'from-pink-500 to-rose-500', type: 'input', id: 99 })}
-      />
+      <BroadcastInputModal isOpen={showBroadcastInput} onClose={() => setShowBroadcastInput(false)} onConfirm={(title, sub) => setSpecialStatus({ message: title, sub: sub, color: 'from-pink-500 to-rose-500', type: 'input', id: 99, icon: Megaphone })} customPresets={customPresets} setCustomPresets={setCustomPresets} />
       <MessageInput isOpen={isEditingMessage} onClose={() => setIsEditingMessage(false)} message={teacherMessage} setMessage={setTeacherMessage} />
     </div>
   );
 };
 
-export default App;
+export default ClassroomDashboardV2;
