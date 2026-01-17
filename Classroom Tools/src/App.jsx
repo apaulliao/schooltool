@@ -71,10 +71,10 @@ const App = () => {
 
   return (
     <div className="relative w-full h-screen bg-slate-200 overflow-hidden">
-      {/* 隱藏式系統選單按鈕 (左上角) */}
+      {/* 隱藏式系統選單按鈕 (改為左下角 bottom-4) */}
       <button 
         onClick={() => setIsLauncherOpen(true)}
-        className="fixed top-4 left-4 z-[90] p-3 bg-black/5 hover:bg-black/80 hover:text-white text-transparent rounded-full transition-all duration-300 group backdrop-blur-sm"
+        className="fixed bottom-4 left-4 z-[90] p-3 bg-black/5 hover:bg-black/80 hover:text-white text-transparent rounded-full transition-all duration-300 group backdrop-blur-sm"
         title="切換應用程式"
       >
         <Grid size={24} className="text-slate-400 group-hover:text-white" />
