@@ -5,6 +5,7 @@ import {
   Box, Play, Pause, RotateCcw, Shuffle, Megaphone, Home,
   LogOut, LogIn, UserX, Library, Tent, Trees, MonitorPlay,
   Utensils, Droplet, Waves, ArrowRight,
+  // 補齊 SettingsModal 需要的所有圖示
   Save, RefreshCw, Wrench, Download, Upload, Plus, Trash2, AlertCircle,
   ToggleLeft, ToggleRight, Check, ChevronDown, ChevronUp
 } from 'lucide-react';
@@ -193,7 +194,6 @@ const SettingsModal = ({
   systemButtonsConfig, 
   defaultValues
 }) => {
-  // 修改預設展開狀態：只展開一般設定
   const [expandedSections, setExpandedSections] = useState({ 'general': true });
   const [newSubjectName, setNewSubjectName] = useState('');
   const [tempTime, setTempTime] = useState(''); 
@@ -427,7 +427,6 @@ const SettingsModal = ({
                                 className="w-full font-bold text-slate-700 bg-transparent outline-none border-b border-transparent focus:border-blue-500"
                             />
                         </div>
-                        {/* 使用自訂的 CustomTimeInput 替代原生的 input type="time" */}
                         <div className="col-span-2">
                             <CustomTimeInput 
                                 value={slot.start} 
@@ -677,7 +676,8 @@ const QuietModeView = ({ title, subtext, icon: IconComponent, centerContent, onC
          <div className="mb-12 flex flex-col items-center">
             {IconComponent && <IconComponent size={80} className="text-indigo-200 mb-6 drop-shadow-[0_0_15px_rgba(199,210,254,0.5)]" />}
             <h2 className="text-6xl font-bold text-indigo-100 tracking-wider mb-4">{title}</h2>
-            <p className="text-2xl text-indigo-300 font-light">{subtext}</p>
+            {/* 修正廣播副標題顯示邏輯：如果沒傳入 subtext，則不渲染，避免空行佔位或顯示 undefined */}
+            {subtext && <p className="text-2xl text-indigo-300 font-light">{subtext}</p>}
          </div>
          {centerContent}
          {onClose && (
@@ -1047,7 +1047,7 @@ const MessageInput = ({ isOpen, onClose, message, setMessage }) => {
 
 const ControlDock = ({ 
   statusMode, setSpecialStatus, setIsManualEco, isFullscreen, toggleFullScreen, setShowSettings, isAutoNapActive, onBroadcastClick, visibleButtons, 
-  forceDark, setForceDark 
+  forceDark, setForceDark, setShowTools 
 }) => {
   const [activeDropdown, setActiveDropdown] = useState(null);
   useEffect(() => {
@@ -1098,6 +1098,7 @@ const ControlDock = ({
       <button onClick={() => setForceDark(!forceDark)} className={`p-2 rounded-xl transition-all hover:-translate-y-1 shrink-0 ${isDark ? 'text-yellow-400 hover:bg-slate-700' : 'text-slate-500 hover:text-blue-600 hover:bg-blue-50'}`} title="切換深色模式">
         {isDark ? <Sun size={20} /> : <Moon size={20} />}
       </button>
+      <button onClick={() => setShowTools(true)} className={`p-2 rounded-xl transition-all hover:-translate-y-1 shrink-0 ${isDark ? 'text-slate-400 hover:text-white hover:bg-slate-700' : 'text-slate-500 hover:text-blue-600 hover:bg-blue-50'}`} title="教室小工具"><Box size={20} /></button>
       <button onClick={toggleFullScreen} className={`p-2 rounded-xl transition-all hover:-translate-y-1 shrink-0 ${isDark ? 'text-slate-400 hover:text-white hover:bg-slate-700' : 'text-slate-500 hover:text-blue-600 hover:bg-blue-50'}`} title={isFullscreen ? "退出全螢幕" : "全螢幕模式"}>
         {isFullscreen ? <Minimize size={20} /> : <Maximize size={20} />}
       </button>
@@ -1414,7 +1415,7 @@ const ClassroomDashboardV2 = () => {
     if (!specialStatus) return null;
     if (specialStatus.type === 'dark' || specialStatus.type === 'alert') return <QuietModeView title={specialStatus.message} subtext={specialStatus.sub} icon={specialStatus.icon} onClose={() => setSpecialStatus(null)} centerContent={<div className="flex flex-col items-center"><div className="text-8xl font-mono font-bold text-slate-200 drop-shadow-2xl">{now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: !is24Hour })}</div><div className="mt-8 bg-white/10 backdrop-blur-md px-8 py-4 rounded-full border border-white/10 text-indigo-200"><span className="mr-4">📢</span>{subjectHints[specialStatus.message] || specialStatus.sub}</div></div>} />;
     const Icon = specialStatus.icon;
-    return <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900 p-8"><div className={`max-w-6xl w-full aspect-video rounded-[3rem] shadow-2xl flex flex-col items-center justify-center text-center p-12 bg-gradient-to-br text-white relative overflow-hidden ${specialStatus.color || 'from-blue-600 to-indigo-800'}`}><div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div><Icon size={100} className="mb-8 opacity-90 animate-bounce" /><h1 className="text-[7rem] font-bold mb-4 leading-tight drop-shadow-md">{specialStatus.message}</h1><button onClick={() => setSpecialStatus(null)} className="absolute top-12 right-12 p-4 bg-white/10 hover:bg-white/20 rounded-full transition-colors"><X size={32} /></button></div></div>;
+    return <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900 p-8"><div className={`max-w-6xl w-full aspect-video rounded-[3rem] shadow-2xl flex flex-col items-center justify-center text-center p-12 bg-gradient-to-br text-white relative overflow-hidden ${specialStatus.color || 'from-blue-600 to-indigo-800'}`}><div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div><Icon size={100} className="mb-8 opacity-90 animate-bounce" /><h1 className="text-[7rem] font-bold mb-4 leading-tight drop-shadow-md">{specialStatus.message}</h1><h2 className="text-[3rem] font-bold mb-4 leading-tight drop-shadow-md">{specialStatus.sub}</h2><button onClick={() => setSpecialStatus(null)} className="absolute top-12 right-12 p-4 bg-white/10 hover:bg-white/20 rounded-full transition-colors"><X size={32} /></button></div></div>;
   };
 
   return (
@@ -1442,9 +1443,14 @@ const ClassroomDashboardV2 = () => {
             visibleButtons={visibleButtons} 
             forceDark={forceDark}
             setForceDark={setForceDark}
+            setShowTools={setShowTools}
         />
         
-        {!(statusMode === 'eco' || statusMode === 'special' || isAutoNapActive) && (<div className="absolute bottom-6 right-6 z-50"><button onClick={() => setShowTools(true)} className="p-4 bg-white/90 backdrop-blur shadow-xl rounded-2xl text-slate-600 hover:text-blue-600 hover:scale-110 transition-all border border-white/50" title="教室小工具"><Box size={24} /></button></div>)}
+        {/* 小工具按鈕優化：在窄螢幕裝置(如平板直向 md:以下)將按鈕上移，避免擋住設定控制台
+          md:bottom-6 md:right-6 (桌面版位置不變)
+          bottom-24 right-4 (手機平板版上移並靠右)
+        */}
+        
       </div>
       
       {/* 呼叫內嵌的 SettingsModal */}
