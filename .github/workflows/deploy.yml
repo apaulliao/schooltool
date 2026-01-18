@@ -32,7 +32,9 @@ jobs:
       - name: Install dependencies
         # 新增：指定工作目錄為您建立的資料夾
         working-directory: 'Classroom Tools'
-        run: npm install
+        run: |
+          npm install
+          npm install vite-plugin-pwa -D
         
       - name: Build
         # 新增：指定工作目錄為您建立的資料夾
