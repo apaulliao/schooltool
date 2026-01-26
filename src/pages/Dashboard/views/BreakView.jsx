@@ -2,11 +2,12 @@ import React from 'react';
 import { ArrowRight, BookOpen, Edit3, Moon, Home } from 'lucide-react';
 import { UI_THEME } from '../../../utils/constants';
 import { CircularProgress, QuietModeView } from '../components/DashboardWidgets';
+import ZhuyinRenderer from '../../../components/common/ZhuyinRenderer'; // 1. 引入
 
 const BreakView = ({ 
   statusMode, currentSlot, now, is24Hour, 
   progress, secondsRemaining, nextSubjectName, systemHint,
-  teacherMessage, setIsEditingMessage, dismissedNap, setDismissedNap 
+  teacherMessage, setIsEditingMessage, dismissedNap, setDismissedNap, isGlobalZhuyin
 }) => {
   const isPreBell = statusMode === 'pre-bell';
   const isNap = currentSlot?.name.includes('午休') || currentSlot?.id === 'nap';
@@ -29,8 +30,8 @@ const BreakView = ({
     
     return (
         <QuietModeView 
-            title={title} 
-            subtext={subtext} 
+            title={<ZhuyinRenderer text={title} isActive={isGlobalZhuyin} />}
+            subtext={<ZhuyinRenderer text={subtext} isActive={isGlobalZhuyin} />}
             icon={icon} 
             onClose={() => setDismissedNap(true)} 
             centerContent={
@@ -40,7 +41,7 @@ const BreakView = ({
                     </div>
                     <div className="mt-8 bg-white/10 backdrop-blur-md px-8 py-4 rounded-full border border-white/10 text-indigo-200">
                         <span className="mr-4">{isNap ? '💤' : '🏠'}</span>
-                        {systemHint}
+                        <ZhuyinRenderer text={systemHint} isActive={isGlobalZhuyin} />
                     </div>
                 </div>
             } 
@@ -57,7 +58,7 @@ const BreakView = ({
         <div className="flex justify-between items-start p-8">
             <div className={`px-6 py-3 rounded-2xl shadow-sm border backdrop-blur-sm ${UI_THEME.SURFACE_GLASS} ${UI_THEME.BORDER_LIGHT}`}>
                 <span className={`font-bold mr-2 ${UI_THEME.TEXT_SECONDARY}`}>目前時段</span>
-                <span className={`text-2xl font-bold ${UI_THEME.TEXT_PRIMARY}`}>{currentSlot?.name}</span>
+                <span className={`text-2xl font-bold ${UI_THEME.TEXT_PRIMARY}`}><ZhuyinRenderer text={currentSlot?.name} isActive={isGlobalZhuyin} /></span>
             </div>
         </div>
 
@@ -71,13 +72,13 @@ const BreakView = ({
                   <div className={`absolute -top-24 px-8 py-3 rounded-full shadow-lg border-2 flex items-center gap-4 transform hover:scale-105 transition-transform z-20 ${UI_THEME.SURFACE_GLASS} ${UI_THEME.BORDER_LIGHT}`}>
                     <span className={`text-lg font-bold uppercase tracking-wider ${UI_THEME.TEXT_MUTED}`}>NEXT</span>
                     <div className="flex items-center gap-2 text-4xl font-bold text-indigo-600 dark:text-indigo-400">
-                        <ArrowRight size={32} strokeWidth={3} /> {nextSubjectName}
+                        <ArrowRight size={32} strokeWidth={3} /> <ZhuyinRenderer text={nextSubjectName} isActive={isGlobalZhuyin} />
                     </div>
                   </div>
                   <div className={`text-[7rem] font-bold font-mono tracking-tighter leading-none ${isPreBell ? 'text-red-600 animate-pulse' : UI_THEME.TEXT_PRIMARY}`}>
                       {formatCountdown(secondsRemaining)}
                   </div>
-                  <div className="text-slate-400 font-medium mt-2 tracking-widest uppercase">{isPreBell ? '預備鐘響' : 'REMAINING'}</div>
+                  <div className="text-slate-400 font-medium mt-2 tracking-widest uppercase">{isPreBell ? <ZhuyinRenderer text="預備鐘響" isActive={isGlobalZhuyin} /> : 'REMAINING'}</div>
               </div>
             </CircularProgress>
           </div>
@@ -103,15 +104,20 @@ const BreakView = ({
             <div className={`backdrop-blur-xl p-8 rounded-3xl shadow-xl border transform transition-all duration-500 ${isPreBell ? 'opacity-50 blur-[2px] scale-95' : 'opacity-100 scale-100'} ${UI_THEME.SURFACE_GLASS} ${UI_THEME.BORDER_LIGHT}`}>
               <div className="flex items-center gap-4 mb-4">
                 <div className="p-3 bg-blue-100 rounded-2xl text-blue-600"><BookOpen size={32} /></div>
-                <div className="text-lg text-slate-500 font-bold">{isCleaning ? '打掃提醒' : (isLunch ? '用餐提醒' : '請準備')}</div>
+                <div className="text-lg text-slate-500 font-bold">
+				<ZhuyinRenderer 
+                        text={isCleaning ? '打掃提醒' : (isLunch ? '用餐提醒' : '請準備')} 
+                        isActive={isGlobalZhuyin} 
+                    />
+					</div>
               </div>
-              <div className={`text-3xl font-bold leading-normal ${UI_THEME.TEXT_PRIMARY}`}>{systemHint}</div>
+              <div className={`text-3xl font-bold leading-normal ${UI_THEME.TEXT_PRIMARY}`}><ZhuyinRenderer text={systemHint} isActive={isGlobalZhuyin} /></div>
             </div>
           </div>
         </div>
 
         {/* 預備鐘響底部提示 */}
-        {isPreBell && (<div className="bg-red-600 text-white p-8 rounded-3xl shadow-2xl border-4 border-red-400 animate-bounce-subtle flex items-center justify-center text-center absolute bottom-12 left-1/2 -translate-x-1/2 z-30"><div><h3 className="text-4xl font-bold mb-2">請回座位</h3><p className="text-xl opacity-90">靜候老師上課</p></div></div>)}
+        {isPreBell && (<div className="bg-red-600 text-white p-8 rounded-3xl shadow-2xl border-4 border-red-400 animate-bounce-subtle flex items-center justify-center text-center absolute bottom-12 left-1/2 -translate-x-1/2 z-30"><div><h3 className="text-4xl font-bold mb-2"><ZhuyinRenderer text="請回座位" isActive={isGlobalZhuyin} /></h3><p className="text-xl opacity-90"><ZhuyinRenderer text="靜候老師上課" isActive={isGlobalZhuyin} /></p></div></div>)}
       </div>
     </div>
   );

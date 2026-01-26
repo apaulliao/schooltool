@@ -55,6 +55,14 @@ const Toolbar = ({
     }
   };
 
+	const handlePrintPDF = () => {
+	  // 先將 UI 切換為適合列印的狀態
+	  setIsFocusMode(true); 
+	  setTimeout(() => {
+		window.print();
+	  }, 500); // 留時間讓 UI 渲染完成
+	};
+
   const getThemeIcon = () => {
 	if (theme === 'system') return <Laptop size={18} />;
     if (theme === 'light') return <Sun size={18} />;
@@ -258,7 +266,9 @@ const Toolbar = ({
 
             {/* 更多功能 (截圖/全螢幕/收合) */}
             <div className="flex items-center bg-slate-100 dark:bg-slate-800/50 p-1 rounded-xl">
-                 <button onClick={handleExportImage} className="p-2 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-white dark:hover:bg-slate-700 transition-all" title="匯出圖片"><ImageIcon size={18}/></button>
+			
+                 <button onClick={handlePrintPDF} className="p-2 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-white dark:hover:bg-slate-700 transition-all" title="列印"><Printer size={18}/></button>
+				 <button onClick={handleExportImage} className="p-2 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-white dark:hover:bg-slate-700 transition-all" title="匯出圖片"><ImageIcon size={18}/></button>
                  <button onClick={toggleFullscreen} className="p-2 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-white dark:hover:bg-slate-700 transition-all" title="全螢幕"><Maximize size={18}/></button>
                  <div className="w-px h-4 bg-slate-300 dark:bg-slate-600 mx-1"></div>
                  <button onClick={() => setIsToolbarOpen(false)} className="p-2 rounded-lg text-slate-400 hover:text-red-500 hover:bg-white dark:hover:bg-slate-700 transition-all" title="收起工具列"><ChevronUp size={18}/></button>

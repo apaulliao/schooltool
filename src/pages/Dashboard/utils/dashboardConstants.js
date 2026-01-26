@@ -82,8 +82,8 @@ export const SYSTEM_BUTTONS_CONFIG = {
     }
   ],
   singles: [
-    { id: 'back_classroom', label: '回教室', message: '請盡速回教室', sub: '下課後，準備下一節課程', icon: LogIn, color: 'bg-blue-600' },
-    { id: 'corridor', label: '走廊排隊', message: '走廊排隊中', sub: '靠上椅子，在走廊安靜排隊', icon: LogOut, color: 'bg-orange-500' },
+    { id: 'back_classroom', label: '回教室', message: '下課直接回教室', sub: '不要在外逗留', icon: LogIn, color: 'bg-blue-600' },
+    { id: 'corridor', label: '走廊排隊', message: '到走廊排隊', sub: '靠上椅子，在走廊安靜排隊', icon: LogOut, color: 'bg-orange-500' },
   ]
 };
 

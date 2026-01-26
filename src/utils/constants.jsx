@@ -213,3 +213,13 @@ export const SYSTEM_CONFIG = {
   DEFAULT_COLS: 8,
   UNDO_LIMIT: 20
 };
+
+export const MODAL_ID = {
+  LAYOUT_TEMPLATE: 'layout_template',
+  ATTENDANCE: 'attendance',
+  BATCH_GROUP: 'batch_group',
+  BEHAVIOR_SETTINGS: 'behavior_settings',
+  EXPORT_STATS: 'export_stats',
+  SCORING: 'scoring',
+  EDIT_STUDENT: 'edit_student'
+};

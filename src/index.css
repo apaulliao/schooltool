@@ -88,3 +88,54 @@ html.dark {
 .animate-shake {
   animation: shake 0.4s ease-in-out;
 }
+
+@font-face {
+  font-family: 'ZhuyinAnnotated';
+  /* 優先尋找本機安裝的名稱 */
+  src: local('ㄅ源泉注音圓體'),
+       /*local('BpmfGenSenRounded'),*/
+       local('BpmfGenSenRounded-L'),
+       /* 網路備用檔案 */
+       url('/fonts/BpmfGenSenRounded-L.ttf') format('truetype');
+  font-display: swap;
+}
+
+.font-with-zhuyin {
+  font-family: 'ZhuyinAnnotated', "Microsoft JhengHei", sans-serif;
+  line-height: 1.5;
+  /* 👇 新增這兩行 */
+  /*font-weight: 500 !important; /* 強制使用標準粗細，不准瀏覽器自動加粗 */
+  /*-webkit-font-smoothing: antialiased; /* 讓字體邊緣更平滑銳利 */
+}
+
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 1cm;
+  }
+
+  /* 隱藏所有不需要列印的 UI */
+  .no-print, 
+  .scoring-tools, 
+  .sidebar, 
+  .toolbar,
+  .scoring-ticker, .modal-overlay,
+  button {
+    display: none !important;
+  }
+
+  /* 確保背景色與字體顏色適合列印 */
+  body {
+    background: white !important;
+    color: black !important;
+  }
+
+  /* 讓座位表容器撐滿寬度 */
+  .print-container {
+    width: 100% !important;
+    max-width: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    transform: scale(1) !important;
+  }
+}

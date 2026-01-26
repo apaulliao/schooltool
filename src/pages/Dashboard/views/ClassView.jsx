@@ -1,8 +1,10 @@
 import React from 'react';
 import { Bell } from 'lucide-react';
 import { UI_THEME } from '../../../utils/constants';
+import ZhuyinRenderer from '../../../components/common/ZhuyinRenderer'; // 1. 引入
 
-const ClassView = ({ schedule, now, currentSlot }) => {
+const ClassView = ({ schedule, now, currentSlot, isGlobalZhuyin }) => {
+  const subjectName = schedule[now.getDay()]?.[currentSlot?.id] || currentSlot?.name;
   return (
     <div className={`flex-1 flex items-center justify-center p-8 transition-colors duration-500 ${UI_THEME.BACKGROUND}`}>
         <div className={`max-w-5xl w-full rounded-[3rem] shadow-2xl p-16 text-center border-4 relative overflow-hidden ${UI_THEME.SURFACE_CARD} ${UI_THEME.BORDER_DEFAULT}`}>
@@ -12,18 +14,24 @@ const ClassView = ({ schedule, now, currentSlot }) => {
                 <Bell size={48} />
             </div>
             
-            <h1 className={`text-7xl font-bold mb-8 tracking-tight ${UI_THEME.TEXT_PRIMARY}`}>上課了</h1>
+			<h1 className={`text-7xl font-bold mb-8 tracking-tight ${isGlobalZhuyin ? '-tracking-widest' : 'tracking-tight'} ${UI_THEME.TEXT_PRIMARY}`}>
+			<ZhuyinRenderer text="上課了" isActive={isGlobalZhuyin} />
+			</h1>
             
             <div className={`text-3xl ${UI_THEME.TEXT_SECONDARY} mb-12 font-medium`}>
-                現在是 
-                <span className="text-indigo-600 dark:text-indigo-400 font-bold mx-2">
-                    {schedule[now.getDay()]?.[currentSlot?.id] || currentSlot?.name}
-                </span> 
-                時間
+                <ZhuyinRenderer text="現在是" isActive={isGlobalZhuyin} /> 
+					<span className="text-indigo-600 dark:text-indigo-400 font-bold mx-2 text-5xl inline-block align-middle"> {/* 稍微放大科目字體 */}
+                    <ZhuyinRenderer 
+                        text={subjectName} 
+                        isActive={isGlobalZhuyin} 
+                    />
+					</span>
+                <ZhuyinRenderer text="的時間" isActive={isGlobalZhuyin} /> 
             </div>
             
             <div className={`rounded-2xl p-8 max-w-2xl mx-auto ${UI_THEME.BACKGROUND} ${UI_THEME.BORDER_LIGHT} border`}>
-                <p className={`text-2xl leading-relaxed ${UI_THEME.TEXT_SECONDARY}`}>請拿出課本與學用品<br/>保持安靜，專心聽講</p>
+                <p className={`text-2xl leading-relaxed ${UI_THEME.TEXT_SECONDARY}`}><ZhuyinRenderer text="請拿出課本與學用品" isActive={isGlobalZhuyin} /><br/>
+                    <ZhuyinRenderer text="保持安靜，專心聽講" isActive={isGlobalZhuyin} /></p>
             </div>
         </div>
     </div>

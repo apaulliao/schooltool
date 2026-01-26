@@ -1,11 +1,12 @@
 import React from 'react';
 import { X, Volume2 } from 'lucide-react';
 import StarryBackground from '../components/StarryBackground';
+import ZhuyinRenderer from '../../../components/common/ZhuyinRenderer'; 
 
-const SpecialView = ({ specialStatus, onClose, now, is24Hour, subjectHints, isSystemSoundEnabled }) => {
+const SpecialView = ({ specialStatus, onClose, now, is24Hour, subjectHints, isSystemSoundEnabled, isGlobalZhuyin}) => {
   if (!specialStatus) return null;
   const Icon = specialStatus.icon;
-
+  const shouldShowZhuyin = specialStatus.showZhuyin || isGlobalZhuyin;
   const isStarryMode = ['nap', 'morning_reading', 'quiet'].includes(specialStatus.id);
 
   return (
@@ -58,10 +59,16 @@ const SpecialView = ({ specialStatus, onClose, now, is24Hour, subjectHints, isSy
                 )}
 
                 <h1 className="text-[6rem] font-black mb-6 leading-none text-transparent bg-clip-text bg-gradient-to-br from-white to-slate-300 drop-shadow-sm tracking-tight">
-                    {specialStatus.message}
+                    <ZhuyinRenderer 
+                        text={specialStatus.message} 
+                        isActive={shouldShowZhuyin} // ✅ 使用計算後的結果
+						/>
                 </h1>
                 <h2 className="text-3xl md:text-4xl font-bold text-indigo-100/90 leading-relaxed max-w-3xl">
-                    {specialStatus.sub}
+                    <ZhuyinRenderer 
+                        text={specialStatus.sub} 
+                        isActive={shouldShowZhuyin} // ✅ 使用計算後的結果
+						/>
                 </h2>
                 
                 {!specialStatus.sub && subjectHints && (

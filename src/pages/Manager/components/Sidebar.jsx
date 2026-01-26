@@ -31,7 +31,7 @@ const Sidebar = ({
   displayMode, appMode
 }) => {
   const { 
-    classes, currentClass, setCurrentClassId, unseatedStudents, currentAttendanceStatus,
+    classes, currentClass, setCurrentClassId, unseatedStudents, 
     addClass, updateClass, deleteClass, importData,
     historyIndex, historyLength, clearScoreLogs ,toggleLock
   } = useClassroomContext();
@@ -41,6 +41,8 @@ const Sidebar = ({
   const importTextRef = useRef(null);
   const { undo, redo, canUndo, canRedo } = useClassroomContext();
   const [isBackupOpen, setIsBackupOpen] = useState(false);
+  const todayDate = new Date().toISOString().split('T')[0];
+  const currentAttendanceStatus = currentClass?.attendanceRecords?.[todayDate] || {};
 
   if (!isOpen) return null;
 

@@ -22,7 +22,7 @@ const StudentCard = memo(({
   // --- 樣式計算邏輯 ---
   const getCardStyles = () => {
     // 預設樣式
-    let styles = "border-slate-200 bg-white text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-white shadow-sm";
+    let styles = "border-slate-500 bg-white text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-white shadow-sm";
     let badge = "bg-slate-500 dark:bg-slate-600";
     let decoration = null;
 

@@ -10,6 +10,7 @@ const SeatCell = ({
   isVoid, onToggleVoid, onToggleLock, 
   hoveredGroup,
   isCompact = false, 
+  layoutRows,
 }) => {
   const [isShaking, setIsShaking] = useState(false);
   const prevScoreRef = useRef(student?.score || 0);
@@ -55,7 +56,27 @@ const SeatCell = ({
     }
   };
 
-  const heightClass = isCompact ? 'min-h-[30px] h-full' : 'min-h-[50px] md:min-h-[64px] h-full';
+const getHeightClass = (rows, isCompact) => {
+  if (isCompact) return 'min-h-[36px]';
+
+  if (rows <= 5) return 'min-h-[100px] md:min-h-[120x]';
+  if (rows <= 6) return 'min-h-[80px] md:min-h-[86px]';
+  if (rows <= 7) return 'min-h-[50px] md:min-h-[80px]';
+
+  return 'min-h-[50px] md:min-h-[64px]'; // 8 列以上
+};
+
+const heightClass = getHeightClass(layoutRows, isCompact);
+
+const getNameSizeClass = (rows, nameLength) => {
+  if (rows <= 5) return nameLength > 3 ? 'text-2xl' : 'text-3xl';
+  if (rows <= 6) return nameLength > 3 ? 'text-xl' : 'text-2xl';
+  if (rows <= 7) return nameLength > 3 ? 'text-lg' : 'text-xl';
+  return nameLength > 3 ? 'text-sm' : 'text-base md:text-lg';
+};
+
+let nameSizeClass = getNameSizeClass(layoutRows, name.length);
+
 
   if (isVoid) {
     return (
@@ -92,9 +113,9 @@ const SeatCell = ({
   
   // 預設樣式
   let bgClass = "bg-white dark:bg-slate-900/80";
-  let borderClass = "border-slate-200 dark:border-slate-900 border-b-[3px]"; 
+  let borderClass = "border-slate-700 dark:border-slate-200 border-b-[3px]"; 
   let textClass = "text-slate-700 dark:text-slate-200";
-  let nameSizeClass = student.name.length > 3 ? 'text-sm' : 'text-base md:text-lg'; 
+  //let nameSizeClass = student.name.length > 3 ? 'text-sm' : 'text-base md:text-lg'; 
 
   // A. 顯示模式切換
   if (displayMode === 'gender') {
@@ -161,7 +182,7 @@ const SeatCell = ({
       <div className={`
           absolute top-1 left-2 px-1.5 pt-0.5 pb-1 
            rounded-br-lg backdrop-blur-sm
-          text-[12px] md:text-xs font-black font-mono leading-none z-10
+          text-[12px] md:text-base font-black font-mono leading-none z-10
           ${isAbsentOrPersonal ? 'text-white/70' : 'text-slate-700 dark:text-white'}
       `}>
           {student.number}
@@ -170,7 +191,7 @@ const SeatCell = ({
       {/* 2. 左下角：分數氣泡 */}
       {!isAbsentOrPersonal && (student.score !== 0 && student.score !== undefined) && (
           <div className={`
-              absolute bottom-1 left-1 px-1 py-0.5 rounded-full text-[10px] font-black shadow-sm z-10
+              absolute bottom-1 left-1 px-1 py-0.5 rounded-full md:text-sm font-black shadow-sm z-10
               ${student.score > 0 ? 'bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-700' : 'bg-rose-100 dark:bg-rose-900/50 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-700'}
           `}>
              {student.score > 0 ? '+' : ''}{student.score}
@@ -192,7 +213,7 @@ const SeatCell = ({
       {/* 4. 右下角：小組 */}
       {!isCompact && student.group && displayMode !== 'group' && (
          <div className="absolute bottom-1 right-1 opacity-30 z-0">
-            <span className="text-[10px] font-bold flex items-center gap-0.5">
+            <span className="md:text-sm font-bold flex items-center gap-0.5">
                <UsersGroupIcon size={10} />
                {student.group}
             </span>

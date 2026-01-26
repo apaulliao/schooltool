@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useMemo } from 'react';
 import { Clock, Coffee, BookOpen } from 'lucide-react';
 import { UI_THEME } from '../../../utils/constants';
+import ZhuyinRenderer from '../../../components/common/ZhuyinRenderer'; // 1. 引入
 
 // 輔助函式：計算進度條
 const getProgress = (start, end, now) => {
@@ -40,7 +41,7 @@ const SidebarHeader = ({ now, is24Hour, dayTypes }) => {
 };
 
 // 子組件：SidebarList
-const SidebarList = React.memo(({ displaySlots, daySchedule, currentSlotId, nextSlotId, now }) => {
+const SidebarList = React.memo(({ displaySlots, daySchedule, currentSlotId, nextSlotId, now, isGlobalZhuyin }) => {
   
   // 自動捲動邏輯 (使用 ID 查詢，更穩定)
   useEffect(() => {
@@ -113,8 +114,11 @@ const SidebarList = React.memo(({ displaySlots, daySchedule, currentSlotId, next
                <div className={`p-2 rounded-full ${isCurrent ? 'bg-indigo-100 text-indigo-600 dark:bg-indigo-900/50 dark:text-indigo-400' : 'bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500'}`}>
                   {slot.type === 'class' ? <BookOpen size={20} /> : <Coffee size={20} />}
                </div>
-               <div className={`text-lg font-bold truncate ${isCurrent ? 'text-indigo-600 dark:text-indigo-400' : UI_THEME.TEXT_PRIMARY}`}>
-                  {subject || slot.name}
+				<div className={`text-lg font-bold truncate ${isCurrent ? 'text-indigo-600 dark:text-indigo-400' : UI_THEME.TEXT_PRIMARY}`}>
+                  <ZhuyinRenderer 
+                      text={subject || slot.name} 
+                      isActive={isGlobalZhuyin} // 跟隨設定
+                  />
                </div>
             </div>
           </div>
@@ -125,7 +129,7 @@ const SidebarList = React.memo(({ displaySlots, daySchedule, currentSlotId, next
 });
 
 // 主組件
-const TimelineSidebar = ({ now, schedule, activeTimeSlots, currentSlot, nextSlot, is24Hour, dayTypes }) => {
+const TimelineSidebar = ({ now, schedule, activeTimeSlots, currentSlot, nextSlot, is24Hour, dayTypes , isGlobalZhuyin}) => {
   const currentDaySchedule = schedule[now.getDay()] || {};
   
   // 只保留「上課 (class)」或「午餐 (lunch)」時段
@@ -140,6 +144,7 @@ const TimelineSidebar = ({ now, schedule, activeTimeSlots, currentSlot, nextSlot
         currentSlotId={currentSlot?.id} 
         nextSlotId={nextSlot?.id} 
         now={now}
+		isGlobalZhuyin={isGlobalZhuyin}
       />
     </div>
   );
