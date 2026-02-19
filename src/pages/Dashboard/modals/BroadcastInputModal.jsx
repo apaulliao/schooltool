@@ -144,11 +144,12 @@ const BroadcastInputModal = ({ isOpen, onClose, onConfirm, customPresets, setCus
                 <div className="space-y-4 mb-6">
                     {/* 按鈕顯示名稱 */}
                     <div>
-                        <div className="flex justify-between items-center mb-1">
-                             <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase">按鈕選單名稱</label>
+                        <div className="flex justify-between items-center mb-1" >
+                             <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase" htmlFor="broad-name-input">按鈕選單名稱</label>
                              <span className="text-[10px] text-slate-400">顯示在快速選單上的文字</span>
                         </div>
                         <input 
+							id="broad-name-input" name="broad-name"
                             value={editingData.name}
                             onChange={(e) => setEditingData({ ...editingData, name: e.target.value })}
                             className="w-full p-2 text-sm font-bold border rounded-lg bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus:border-blue-500 outline-none text-slate-700 dark:text-slate-200"
@@ -158,8 +159,8 @@ const BroadcastInputModal = ({ isOpen, onClose, onConfirm, customPresets, setCus
 
                     <div className="grid grid-cols-1 gap-4">
                         <div>
-                            <label className="block text-xs font-bold text-slate-400 dark:text-slate-500 uppercase mb-1">廣播主標題</label>
-                            <input 
+                            <label className="block text-xs font-bold text-slate-400 dark:text-slate-500 uppercase mb-1" htmlFor="broad-title-input">廣播主標題</label>
+                            <input id="broad-title-input" name="broad-title"
                                 value={editingData.title}
                                 onChange={(e) => setEditingData({ ...editingData, title: e.target.value })}
                                 className="w-full p-3 border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl focus:border-pink-500 dark:focus:border-pink-500 focus:outline-none text-lg font-bold text-slate-800 dark:text-white transition-colors"
@@ -167,8 +168,8 @@ const BroadcastInputModal = ({ isOpen, onClose, onConfirm, customPresets, setCus
                             />
                         </div>
                         <div>
-                            <label className="block text-xs font-bold text-slate-400 dark:text-slate-500 uppercase mb-1">副標題</label>
-                            <input 
+                            <label className="block text-xs font-bold text-slate-400 dark:text-slate-500 uppercase mb-1" htmlFor="broad-sub-input">副標題</label>
+                            <input id="broad-sub-input" name="broad-sub"
                                 value={editingData.sub}
                                 onChange={(e) => setEditingData({ ...editingData, sub: e.target.value })}
                                 className="w-full p-3 border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl focus:border-pink-500 dark:focus:border-pink-500 focus:outline-none text-slate-800 dark:text-white transition-colors"
@@ -181,16 +182,17 @@ const BroadcastInputModal = ({ isOpen, onClose, onConfirm, customPresets, setCus
                 <div className="w-full h-px bg-slate-100 dark:bg-slate-800 my-6"></div>
 
                 {/* 2. 外觀樣式 (圖示與顏色) */}
+				<fieldset>
                 <div className="mb-6">
-                    <label className="block text-xs font-bold text-slate-400 dark:text-slate-500 uppercase mb-3">按鈕外觀風格</label>
+                    <legend className="block text-xs font-bold text-slate-400 dark:text-slate-500 uppercase mb-3">按鈕外觀風格</legend>
                     
                     {/* 顏色選擇 */}
-                    <div className="flex gap-2 mb-4 overflow-x-auto pb-2 no-scrollbar">
+                    <div className="flex gap-2 mb-4 overflow-x-visible pb-2 no-scrollbar">
                         {COLOR_OPTIONS.map(c => (
                             <button
                                 key={c.id}
                                 onClick={() => setEditingData({ ...editingData, color: c.value })}
-                                className={`w-8 h-8 rounded-full bg-gradient-to-br ${c.value} transition-transform hover:scale-110 shrink-0 ${
+                                className={`w-6 h-6 rounded-full bg-gradient-to-br ${c.value} transition-transform hover:scale-110 shrink-0 ${
                                     editingData.color === c.value ? 'ring-2 ring-offset-2 ring-slate-400 dark:ring-offset-slate-900 scale-110' : 'opacity-70 hover:opacity-100'
                                 }`}
                                 title={c.label}
@@ -216,12 +218,14 @@ const BroadcastInputModal = ({ isOpen, onClose, onConfirm, customPresets, setCus
                         ))}
                     </div>
                 </div>
+				</fieldset>
 
                 <div className="w-full h-px bg-slate-100 dark:bg-slate-800 my-6"></div>
 
                 {/* 3. 廣播行為 (模式與TTS) */}
+				<fieldset>
                 <div>
-                     <label className="block text-xs font-bold text-slate-400 dark:text-slate-500 uppercase mb-3">廣播行為設定</label>
+                     <legend className="block text-xs font-bold text-slate-400 dark:text-slate-500 uppercase mb-3">廣播行為設定</legend>
                      <div className="grid grid-cols-2 gap-3">
                         <div className="bg-slate-50 dark:bg-slate-800 p-1 rounded-xl flex border border-slate-200 dark:border-slate-700">
                             <button 
@@ -259,6 +263,7 @@ const BroadcastInputModal = ({ isOpen, onClose, onConfirm, customPresets, setCus
                         </button>
                      </div>
                 </div>
+				</fieldset>
 
             </div>
         </div>

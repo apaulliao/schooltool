@@ -7,7 +7,7 @@ import { useScoring } from './useScoring';
 export const useClassroom = () => {
   // 1. 核心狀態 (State & Persistence)
   const classState = useClassState();
-  const { currentClass, updateClass } = classState;
+  const { currentClass, updateClass, setCurrentClassId } = classState;
 
   // 2. 座位與佈局邏輯 (Seating Logic)
   const seating = useSeating(currentClass, updateClass);
@@ -20,10 +20,36 @@ export const useClassroom = () => {
   const [groupBoardMode, setGroupBoardMode] = useState('entity');
 
   // 5. 雜項功能 (Misc)
-const updateAttendance = useCallback((date, statusMap) => {
-      const newRecords = { ...(currentClass.attendanceRecords || {}), [date]: statusMap };
-      updateClass({ ...currentClass, attendanceRecords: newRecords });
+  const updateAttendance = useCallback((date, statusMap) => {
+      if (!currentClass) return;
+      
+      const newRecords = { 
+        ...(currentClass.attendanceRecords || {}), 
+        [date]: statusMap 
+      };
+      
+      // 直接呼叫來自 useClassState 的 updateClass
+      updateClass({ 
+        ...currentClass, 
+        attendanceRecords: newRecords 
+      });
   }, [currentClass, updateClass]);
+  
+  const handleSelectClass = useCallback((id) => {
+      setCurrentClassId(id);
+  }, [setCurrentClassId]);
+  
+  const updateStudent = useCallback((updatedStudent) => {
+    if (!currentClass) return;
+
+    // 商業邏輯：更新陣列中的特定物件
+    const newStudents = currentClass.students.map(s => 
+      s.id === updatedStudent.id ? updatedStudent : s
+    );
+
+    // 寫回核心狀態
+    updateClass({ ...currentClass, students: newStudents });
+  }, [currentClass, updateClass]);  
   
   const updateStudents = useCallback((newStudents) => {
       updateClass({...currentClass, students: newStudents});
@@ -45,7 +71,8 @@ const updateAttendance = useCallback((date, statusMap) => {
     groupBoardMode, setGroupBoardMode,
 
     // Helpers
+	setCurrentClass: handleSelectClass,
     updateAttendance,
-    updateStudents,
+    updateStudents, updateStudent,
   };
 };

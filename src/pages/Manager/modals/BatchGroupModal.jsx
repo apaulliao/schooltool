@@ -1,8 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { Layers, X, Shuffle, Trash2, Users, GripVertical, TrendingUp, Scale } from 'lucide-react';
 import { GROUP_THEME } from '../../../utils/constants';
+import { cn } from '../../../utils/cn'; // ★ 引入工具
 
-// ★ 新增 prop: onShowDialog
+// 引入演算法 (假設您已建立)
+import { 
+    distributeRandom, 
+    distributeGenderBalanced, 
+    distributeScoreBalanced, 
+    distributeFullBalanced 
+} from '../../../utils/groupingAlgorithms';
+
 const BatchGroupModal = ({ isOpen, onClose, students, onUpdateStudents, onShowDialog }) => {
   const [localStudents, setLocalStudents] = useState([]);
   const [groupCount, setGroupCount] = useState(6); 
@@ -20,70 +28,12 @@ const BatchGroupModal = ({ isOpen, onClose, students, onUpdateStudents, onShowDi
 
   const hasPerformanceData = localStudents.some(s => s.performance !== undefined && s.performance !== null);
 
-  // ... (演算法邏輯保持不變) ...
-  const handleRandomDistribute = () => {
-    const shuffled = [...localStudents].sort(() => Math.random() - 0.5);
-    setLocalStudents(shuffled.map((s, i) => ({ ...s, group: ((i % groupCount) + 1).toString() })));
-  };
-  
-  const handleGenderBalanced = () => {
-      const boys = localStudents.filter(s => s.gender === 'M').sort(() => Math.random() - 0.5);
-      const girls = localStudents.filter(s => s.gender === 'F').sort(() => Math.random() - 0.5);
-      const others = localStudents.filter(s => s.gender !== 'M' && s.gender !== 'F').sort(() => Math.random() - 0.5);
-      const groups = Array.from({ length: groupCount }, () => []);
-      const distributeWithReset = (list) => {
-          let currentGroup = 0; let direction = 1;
-          list.forEach(s => {
-              groups[currentGroup].push(s);
-              if (direction === 1) { if (currentGroup === groupCount - 1) direction = -1; else currentGroup++; } 
-              else { if (currentGroup === 0) direction = 1; else currentGroup--; }
-          });
-      };
-      distributeWithReset(boys); distributeWithReset(girls); distributeWithReset(others);
-      flattenAndSet(groups);
-  };
+  // 演算法呼叫簡化
+  const handleRandomDistribute = () => setLocalStudents(distributeRandom(localStudents, groupCount));
+  const handleGenderBalanced = () => setLocalStudents(distributeGenderBalanced(localStudents, groupCount));
+  const handleScoreBalanced = () => setLocalStudents(distributeScoreBalanced(localStudents, groupCount));
+  const handleFullBalanced = () => setLocalStudents(distributeFullBalanced(localStudents, groupCount));
 
-  const handleScoreBalanced = () => {
-      const sorted = [...localStudents].sort((a, b) => (parseFloat(b.performance)||0) - (parseFloat(a.performance)||0));
-      const groups = Array.from({ length: groupCount }, () => []);
-      let currentGroup = 0; let direction = 1;
-      sorted.forEach((student) => {
-          groups[currentGroup].push(student);
-          if (direction === 1) { if (currentGroup === groupCount - 1) direction = -1; else currentGroup++; }
-          else { if (currentGroup === 0) direction = 1; else currentGroup--; }
-      });
-      flattenAndSet(groups);
-  };
-
-  const handleFullBalanced = () => {
-      const boys = localStudents.filter(s => s.gender === 'M').sort((a, b) => (parseFloat(b.performance)||0) - (parseFloat(a.performance)||0));
-      const girls = localStudents.filter(s => s.gender === 'F').sort((a, b) => (parseFloat(b.performance)||0) - (parseFloat(a.performance)||0));
-      const others = localStudents.filter(s => s.gender !== 'M' && s.gender !== 'F').sort((a, b) => (parseFloat(b.performance)||0) - (parseFloat(a.performance)||0));
-      const groups = Array.from({ length: groupCount }, () => []);
-      const distributeSortedList = (list, startDirection = 1) => {
-          let currentGroup = startDirection === 1 ? 0 : groupCount - 1;
-          let direction = startDirection;
-          list.forEach(s => {
-              groups[currentGroup].push(s);
-              if (direction === 1) { if (currentGroup === groupCount - 1) direction = -1; else currentGroup++; }
-              else { if (currentGroup === 0) direction = 1; else currentGroup--; }
-          });
-      };
-      distributeSortedList(boys, 1); distributeSortedList(girls, -1); distributeSortedList(others, 1);
-      flattenAndSet(groups);
-  };
-
-  const flattenAndSet = (groups) => {
-      const finalStudents = [];
-      groups.forEach((gList, idx) => {
-          const groupId = (idx + 1).toString();
-          gList.forEach(s => { s.group = groupId; finalStudents.push(s); });
-      });
-      const groupMap = {}; finalStudents.forEach(s => groupMap[s.id] = s.group);
-      setLocalStudents(prev => prev.map(s => ({ ...s, group: groupMap[s.id] !== undefined ? groupMap[s.id] : '' })));
-  };
-
-  // ★ 修改：使用 onShowDialog 取代 window.confirm
   const handleClearGroups = () => { 
     onShowDialog({
         type: 'confirm',
@@ -99,7 +49,16 @@ const BatchGroupModal = ({ isOpen, onClose, students, onUpdateStudents, onShowDi
 
   const handleSave = () => { onUpdateStudents(localStudents); onClose(); };
   const handleDragStart = (e, studentId) => { e.dataTransfer.setData("studentId", studentId); e.dataTransfer.effectAllowed = "move"; };
-  const handleDrop = (e, targetGroupId) => { e.preventDefault(); const studentId = e.dataTransfer.getData("studentId"); if (!studentId) return; setLocalStudents(prev => prev.map(s => { if (s.id === studentId) return { ...s, group: targetGroupId }; return s; })); };
+  
+  const handleDrop = (e, targetGroupId) => { 
+      e.preventDefault(); 
+      const studentId = e.dataTransfer.getData("studentId"); 
+      if (!studentId) return; 
+      setLocalStudents(prev => prev.map(s => { 
+          if (s.id === studentId) return { ...s, group: targetGroupId }; 
+          return s; 
+      })); 
+  };
   const handleDragOver = (e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; };
   
   const groupedData = { unassigned: [] };
@@ -147,27 +106,41 @@ const BatchGroupModal = ({ isOpen, onClose, students, onUpdateStudents, onShowDi
                 <Users size={16}/> 性別平均
             </button>
             <div className="h-6 w-px bg-slate-300 dark:bg-slate-600 mx-1"></div>
+            
+            {/* 使用 cn 處理按鈕的 Disabled 狀態 */}
             <button 
                 onClick={handleScoreBalanced} 
                 disabled={!hasPerformanceData}
-                className={`px-3 py-2 border rounded-lg text-sm font-bold flex items-center gap-2 transition-all shadow-sm ${hasPerformanceData ? 'bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 hover:text-emerald-600 dark:hover:text-emerald-300' : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-600 cursor-not-allowed'}`}
+                className={cn(
+                    "px-3 py-2 border rounded-lg text-sm font-bold flex items-center gap-2 transition-all shadow-sm",
+                    hasPerformanceData 
+                        ? "bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 hover:text-emerald-600 dark:hover:text-emerald-300" 
+                        : "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-600 cursor-not-allowed"
+                )}
             >
                 <TrendingUp size={16}/> 成績平均
             </button>
+            
             <button 
                 onClick={handleFullBalanced} 
                 disabled={!hasPerformanceData}
-                className={`px-3 py-2 border rounded-lg text-sm font-bold flex items-center gap-2 transition-all shadow-sm ${hasPerformanceData ? 'bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-amber-50 dark:hover:bg-amber-900/30 hover:text-amber-600 dark:hover:text-amber-300' : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-600 cursor-not-allowed'}`}
+                className={cn(
+                    "px-3 py-2 border rounded-lg text-sm font-bold flex items-center gap-2 transition-all shadow-sm",
+                    hasPerformanceData 
+                        ? "bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-amber-50 dark:hover:bg-amber-900/30 hover:text-amber-600 dark:hover:text-amber-300" 
+                        : "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-600 cursor-not-allowed"
+                )}
             >
                 <Scale size={16}/> 性別+成績平均
             </button>
+            
             <div className="flex-1"></div>
             <button onClick={handleClearGroups} className="px-3 py-2 bg-white dark:bg-slate-700 border border-red-200 dark:border-red-900/50 text-red-600 dark:text-red-400 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-red-50 dark:hover:bg-red-900/30 transition-all shadow-sm">
                 <Trash2 size={16}/> 清空
             </button>
         </div>
 
-        {/* Board Area - 以下程式碼保持不變 */}
+        {/* Board Area */}
         <div className="flex-1 flex overflow-hidden bg-slate-200/50 dark:bg-slate-950/50">
             {/* 左側：未分組 */}
             <div 
@@ -214,13 +187,19 @@ const BatchGroupModal = ({ isOpen, onClose, students, onUpdateStudents, onShowDi
                         return (
                             <div 
                                 key={groupId}
-                                className={`flex flex-col bg-white dark:bg-slate-800 rounded-xl shadow-sm border-2 ${theme.border} min-h-[200px] transition-colors`}
+                                className={cn(
+                                    "flex flex-col bg-white dark:bg-slate-800 rounded-xl shadow-sm border-2 min-h-[200px] transition-colors",
+                                    theme.border
+                                )}
                                 onDragOver={handleDragOver}
                                 onDrop={(e) => handleDrop(e, groupId)}
                             >
-                                <div className={`p-3 border-b-2 rounded-t-lg flex justify-between items-start ${theme.bg} ${theme.border}`}>
+                                <div className={cn(
+                                    "p-3 border-b-2 rounded-t-lg flex justify-between items-start",
+                                    theme.bg, theme.border
+                                )}>
                                     <div>
-                                        <h4 className={`font-black text-lg ${theme.text}`}>第 {groupId} 組</h4>
+                                        <h4 className={cn("font-black text-lg", theme.text)}>第 {groupId} 組</h4>
                                         <div className="flex flex-col gap-1 mt-1">
                                             <div className="flex gap-2 text-[10px] font-bold text-slate-500 dark:text-slate-400">
                                                 <span className="flex items-center gap-0.5"><span className="w-1.5 h-1.5 rounded-full bg-blue-400"></span>{boyCount}</span>
@@ -236,7 +215,10 @@ const BatchGroupModal = ({ isOpen, onClose, students, onUpdateStudents, onShowDi
                                     <span className="bg-white/80 dark:bg-slate-700/80 text-slate-700 dark:text-slate-200 px-2 py-1 rounded-lg text-sm font-black shadow-sm">{count}人</span>
                                 </div>
                                 
-                                <div className={`flex-1 p-2 space-y-2 ${styleMode === 'filled' ? 'bg-transparent' : 'bg-slate-50/50 dark:bg-slate-900/30'}`}>
+                                <div className={cn(
+                                    "flex-1 p-2 space-y-2",
+                                    styleMode === 'filled' ? 'bg-transparent' : 'bg-slate-50/50 dark:bg-slate-900/30'
+                                )}>
                                     {students.map(s => (
                                         <DraggableStudentCard key={s.id} student={s} onDragStart={handleDragStart} showPerformance={hasPerformanceData}/>
                                     ))}
@@ -267,16 +249,22 @@ const BatchGroupModal = ({ isOpen, onClose, students, onUpdateStudents, onShowDi
   );
 };
 
-// 內部小卡片 (無變更)
+// 內部小卡片 (樣式也一起優化)
 const DraggableStudentCard = ({ student, onDragStart, showPerformance }) => {
     return (
         <div 
             draggable 
             onDragStart={(e) => onDragStart(e, student.id)}
-            className="bg-white dark:bg-slate-800 p-2 rounded-lg border border-slate-200 dark:border-slate-600 shadow-sm cursor-grab active:cursor-grabbing hover:border-blue-400 dark:hover:border-blue-500 hover:shadow-md transition-all flex items-center gap-3 group"
+            className={cn(
+                "bg-white dark:bg-slate-800 p-2 rounded-lg border border-slate-200 dark:border-slate-600 shadow-sm transition-all flex items-center gap-3 group",
+                "cursor-grab active:cursor-grabbing hover:border-blue-400 dark:hover:border-blue-500 hover:shadow-md"
+            )}
         >
             <div className="text-slate-300 dark:text-slate-600 group-hover:text-blue-400 cursor-grab"><GripVertical size={14}/></div>
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0 ${student.gender === 'M' ? 'bg-blue-400' : 'bg-rose-400'}`}>
+            <div className={cn(
+                "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0",
+                student.gender === 'M' ? 'bg-blue-400' : 'bg-rose-400'
+            )}>
                 {student.number}
             </div>
             <div className="flex-1 min-w-0 flex justify-between items-center">

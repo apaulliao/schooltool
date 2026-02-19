@@ -7,16 +7,19 @@ import {
 } from 'lucide-react';
 
 import { UI_THEME } from './utils/constants';
-import { useThemeContext } from './context/ThemeContext';
 import usePersistentState from './hooks/usePersistentState'; 
-import { OSProvider, useOS } from './context/OSContext'; // ✅ 引入新大腦
+import { ThemeProvider, useThemeContext } from './context/ThemeContext';
+import { OSProvider, useOS } from './context/OSContext';
+import { ClassroomProvider } from './context/ClassroomContext';
+import { ModalProvider } from './context/ModalContext';
+
 
 // 引入全域備份模組
 import GlobalBackupModal from './components/common/GlobalBackupModal';
 import ZhuyinSettingsModal from './components/common/ZhuyinSettingsModal'; // ✅ 新增引入
 
 const ClassroomDashboardV2 = lazy(() => import('./ClassroomDashboardV2.jsx'));
-const ExamTool = lazy(() => import('./ExamTool.jsx'));
+const ExamTool = lazy(() => import('./pages/ExamTool/ExamTool.jsx'));
 const ClassroomManager = lazy(() => import('./ClassroomManager.jsx'));
 
 const LoadingScreen = () => (
@@ -217,7 +220,13 @@ const ClassroomOS = () => {
 
 const App = () => (
   <OSProvider>
-    <ClassroomOS />
+    <ClassroomProvider> {/* 讓所有 App 共享班級資料 */}
+      <ModalProvider>     {/* 讓所有 App 共享彈窗控制 */}
+        <ThemeProvider>   {/* 讓所有 App 共享主題 */}
+           <ClassroomOS />
+        </ThemeProvider>
+      </ModalProvider>
+    </ClassroomProvider>
   </OSProvider>
 );
 

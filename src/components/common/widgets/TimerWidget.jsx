@@ -17,15 +17,21 @@ const TimerWidget = ({ isOpen, onClose }) => {
   
   const intervalRef = useRef(null);
   const ringIntervalRef = useRef(null);
-  const autoStopTimeoutRef = useRef(null); // 新增：用於自動停止的 ref
+  const autoStopTimeoutRef = useRef(null);
 
-  // 1. 計時核心邏輯 (維持不變)
+  // 1. 計時核心邏輯 (★ 修改處)
   useEffect(() => {
     if (isActive) {
       intervalRef.current = setInterval(() => {
         setTimeLeft((prev) => {
           if (mode === 'timer') {
-            if (prev <= 6 && prev > 1) { playAudio('tick'); }
+            // A. 剩餘時間提醒 (30秒)
+            if (prev === 31) { playAudio('alert'); } // 在變為30秒的前一刻響
+
+            // B. 最後倒數 (從 10 秒開始滴答聲，原本是 6 秒)
+            if (prev <= 11 && prev > 1) { playAudio('tick'); }
+            
+            // C. 時間到
             if (prev <= 1) { 
                 clearInterval(intervalRef.current); 
                 setIsActive(false); 
@@ -34,6 +40,7 @@ const TimerWidget = ({ isOpen, onClose }) => {
             }
             return prev - 1;
           } else { 
+            // 碼表模式 (Stopwatch) - 不需要倒數音效
             return prev + 1; 
           }
         });
@@ -44,24 +51,27 @@ const TimerWidget = ({ isOpen, onClose }) => {
     return () => clearInterval(intervalRef.current);
   }, [isActive, mode, playAudio]);
 
-  // 2. 響鈴邏輯 (修改：加入 5 秒自動關閉)
+  // 2. 響鈴邏輯 (★ 修改處：加入哨音)
   useEffect(() => {
     if (isRinging) {
-       // A. 立即播一次
-       playAudio('alarm');
+       // A. ★ 瞬間爆發力：先吹一聲哨子，代表「停！」
+       playAudio('whistle');
        
-       // B. 啟動循環播放 (每 1.2 秒響一次)
-       ringIntervalRef.current = setInterval(() => {
-           playAudio('alarm');
-       }, 1200);
+       // B. 延遲一點點再開始循環鬧鐘，避免聲音打架
+       setTimeout(() => {
+           playAudio('alarm'); // 第一聲鬧鐘
+           
+           ringIntervalRef.current = setInterval(() => {
+               playAudio('alarm');
+           }, 1200);
+       }, 1500); // 0.8秒後接鬧鐘
 
-       // C. 設定 5 秒後自動停止
+       // C. 自動停止 (維持 5 秒)
        autoStopTimeoutRef.current = setTimeout(() => {
            setIsRinging(false);
-       }, 5000);
+       }, 5800); // 配合延遲稍微加長一點
 
     } else {
-       // 停止時清除所有計時器
        if (ringIntervalRef.current) clearInterval(ringIntervalRef.current);
        if (autoStopTimeoutRef.current) clearTimeout(autoStopTimeoutRef.current);
     }
@@ -74,15 +84,13 @@ const TimerWidget = ({ isOpen, onClose }) => {
 
   const handleTimeUp = () => {
       setIsRinging(true);
-      // setIsFullScreen(true); // 如果希望時間到自動全螢幕，可取消註解
+      // 如果希望時間到自動全螢幕，可取消下方註解
+      // setIsFullScreen(true); 
   };
 
-  const stopRinging = () => {
-      setIsRinging(false); // 手動關閉會觸發 useEffect 的 cleanup，自動清除 timeout
-  };
-
-  // ... (其餘程式碼與之前相同，不需要更動)
+  // ... (其餘 UI 程式碼完全保持不變) ...
   
+  const stopRinging = () => { setIsRinging(false); };
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60); 
     const secs = seconds % 60;
@@ -91,24 +99,14 @@ const TimerWidget = ({ isOpen, onClose }) => {
 
   const handleSetTimer = (minutes) => { 
       const seconds = Math.round(minutes * 60); 
-      setTimeLeft(seconds); 
-      setInitialTime(seconds); 
-      setIsActive(false); 
-      setIsRinging(false);
-      setMode('timer'); 
-      setInputMin(''); setInputSec('');
+      setTimeLeft(seconds); setInitialTime(seconds); setIsActive(false); setIsRinging(false); setMode('timer'); setInputMin(''); setInputSec('');
   };
 
   const handleCustomSet = () => {
-      const m = parseInt(inputMin) || 0;
-      const s = parseInt(inputSec) || 0;
+      const m = parseInt(inputMin) || 0; const s = parseInt(inputSec) || 0;
       if (m === 0 && s === 0) return;
       const totalSeconds = (m * 60) + s;
-      setTimeLeft(totalSeconds);
-      setInitialTime(totalSeconds);
-      setIsActive(false);
-      setIsRinging(false);
-      setMode('timer');
+      setTimeLeft(totalSeconds); setInitialTime(totalSeconds); setIsActive(false); setIsRinging(false); setMode('timer');
   };
   
   const toggleTimer = () => { 
@@ -118,19 +116,17 @@ const TimerWidget = ({ isOpen, onClose }) => {
   };
 
   const handleReset = () => { 
-      setIsActive(false); 
-      setIsRinging(false);
-      setTimeLeft(mode === 'timer' ? initialTime : 0); 
+      setIsActive(false); setIsRinging(false); setTimeLeft(mode === 'timer' ? initialTime : 0); 
   };
 
   const renderContent = (isFull = false) => (
       <div className={`flex flex-col items-center justify-center ${isFull ? 'h-full w-full' : 'gap-4'}`}>
-        
         <div 
             className={`
                 relative group cursor-pointer tabular-nums leading-none tracking-tight font-black font-mono select-none transition-all
                 ${isFull ? 'text-[25vw] text-white drop-shadow-2xl' : 'text-6xl text-slate-800 dark:text-white'}
                 ${isRinging ? 'animate-bounce text-red-100' : ''}
+                ${timeLeft <= 10 && mode === 'timer' && isActive ? 'text-red-500 scale-110' : ''} // ★ 增加視覺提示：最後10秒變紅放大
             `}
             onClick={() => {
                 if(!isActive && !isRinging) {
@@ -140,7 +136,6 @@ const TimerWidget = ({ isOpen, onClose }) => {
             }}
         >
             {formatTime(timeLeft)}
-            
             {isRinging && (
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-red-600 animate-ping opacity-75">
                     <Bell size={isFull ? 300 : 100} fill="currentColor"/>
@@ -159,7 +154,6 @@ const TimerWidget = ({ isOpen, onClose }) => {
            >
              {isRinging ? <BellOff size={isFull?40:24}/> : (isActive ? <Pause size={isFull?40:24} fill="currentColor"/> : <Play size={isFull?40:24} fill="currentColor" className="ml-1"/>)}
            </button>
-           
            <button 
              onClick={handleReset}
              className={`
@@ -173,27 +167,13 @@ const TimerWidget = ({ isOpen, onClose }) => {
       </div>
   );
 
+  // ... (render return 部分保持不變) ...
   if (isFullScreen) {
       return (
-        <div className={`
-            fixed inset-0 z-[200] flex flex-col items-center justify-center transition-colors duration-500
-            ${isRinging ? 'bg-red-600' : 'bg-slate-900'}
-        `}>
+        <div className={`fixed inset-0 z-[200] flex flex-col items-center justify-center transition-colors duration-500 ${isRinging ? 'bg-red-600' : 'bg-slate-900'}`}>
             <div className="absolute top-6 right-6 flex gap-4 z-50">
-                <button 
-                    onClick={() => setIsFullScreen(false)}
-                    className="p-3 bg-white/10 hover:bg-white/20 rounded-full text-white backdrop-blur-md transition-all"
-                    title="縮小視窗"
-                >
-                    <Minimize2 size={32}/>
-                </button>
-                <button 
-                    onClick={onClose}
-                    className="p-3 bg-white/10 hover:bg-red-500/80 rounded-full text-white backdrop-blur-md transition-all"
-                    title="關閉"
-                >
-                    <Save size={32} className="rotate-45"/> 
-                </button>
+                <button onClick={() => setIsFullScreen(false)} className="p-3 bg-white/10 hover:bg-white/20 rounded-full text-white backdrop-blur-md transition-all"><Minimize2 size={32}/></button>
+                <button onClick={onClose} className="p-3 bg-white/10 hover:bg-red-500/80 rounded-full text-white backdrop-blur-md transition-all"><Save size={32} className="rotate-45"/></button>
             </div>
             {renderContent(true)}
         </div>
@@ -201,56 +181,25 @@ const TimerWidget = ({ isOpen, onClose }) => {
   }
 
   return (
-    <DraggableWidget 
-      title="課堂計時" 
-      isOpen={isOpen} 
-      onClose={onClose} 
-      icon={Timer}
-      initialPosition={{ x: 320, y: 150 }}
-      width="w-72"
-    >
+    <DraggableWidget title="課堂計時" isOpen={isOpen} onClose={onClose} icon={Timer} initialPosition={{ x: 320, y: 150 }} width="w-72">
       <div className="flex flex-col items-center gap-4 relative">
-        <button 
-            onClick={() => setIsFullScreen(true)}
-            className="absolute -top-2 -right-2 p-2 text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-slate-800 rounded-lg transition-colors"
-            title="全螢幕顯示"
-        >
-            <Maximize2 size={16}/>
-        </button>
-
+        <button onClick={() => setIsFullScreen(true)} className="absolute -top-2 -right-2 p-2 text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-slate-800 rounded-lg transition-colors"><Maximize2 size={16}/></button>
         {renderContent(false)}
-
         {mode === 'timer' && (
             <div className="w-full space-y-3 pt-2 border-t border-slate-100 dark:border-slate-800/50">
                 <div className="grid grid-cols-4 gap-2">
                     {[1, 3, 5, 10].map(m => (
-                    <button 
-                        key={m} onClick={() => handleSetTimer(m)}
-                        className="py-1.5 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 active:bg-slate-200 transition-colors"
-                    >
-                        {m}分
-                    </button>
+                    <button key={m} onClick={() => handleSetTimer(m)} className="py-1.5 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 active:bg-slate-200 transition-colors">{m}分</button>
                     ))}
                 </div>
-
                 <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/50 p-1.5 rounded-xl border border-slate-100 dark:border-slate-700">
                     <div className="flex items-center gap-1 flex-1">
-                        <input 
-                            type="number" placeholder="00" value={inputMin}
-                            onChange={(e) => setInputMin(e.target.value)}
-                            className="w-full text-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md py-1 text-sm font-bold text-slate-700 dark:text-slate-200 outline-none focus:border-blue-500"
-                        />
+                        <input type="number" placeholder="00" value={inputMin} onChange={(e) => setInputMin(e.target.value)} className="w-full text-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md py-1 text-sm font-bold text-slate-700 dark:text-slate-200 outline-none focus:border-blue-500"/>
                         <span className="text-xs font-bold text-slate-400">分</span>
-                        <input 
-                            type="number" placeholder="00" value={inputSec}
-                            onChange={(e) => setInputSec(e.target.value)}
-                            className="w-full text-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md py-1 text-sm font-bold text-slate-700 dark:text-slate-200 outline-none focus:border-blue-500"
-                        />
+                        <input type="number" placeholder="00" value={inputSec} onChange={(e) => setInputSec(e.target.value)} className="w-full text-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md py-1 text-sm font-bold text-slate-700 dark:text-slate-200 outline-none focus:border-blue-500"/>
                         <span className="text-xs font-bold text-slate-400">秒</span>
                     </div>
-                    <button onClick={handleCustomSet} className="p-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg shadow-sm">
-                        <Save size={16}/>
-                    </button>
+                    <button onClick={handleCustomSet} className="p-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg shadow-sm"><Save size={16}/></button>
                 </div>
             </div>
         )}

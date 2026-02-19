@@ -5,34 +5,67 @@ const ScoringModal = ({ isOpen, onClose, student, behaviors = [], onScore, defau
   
   if (!isOpen || !student) return null;
 
+  // 1. 判斷模式：優先讀取傳入資料中的 mode，若無則使用預設值
+  const currentMode = student.mode || defaultMode;
+
+  // 2. 根據模式設定 UI (標題、圖示、顏色)
   let targetMode = 'individual';
   let title = student.name;
-  let subtitle = `座號: ${student.number}`;
+  let subtitle = student.number ? `座號: ${student.number}` : ''; // 座號可能為空
   let icon = <User size={20}/>;
   let headerColor = 'bg-slate-800 dark:bg-slate-950'; 
   let subHeaderColor = 'bg-slate-700 dark:bg-slate-800';
 
-  if (student.isClassEntity) {
-      targetMode = 'class'; title = '全班同學'; subtitle = 'Classroom'; icon = <Users size={20}/>; headerColor = 'bg-indigo-600 dark:bg-indigo-900'; subHeaderColor = 'bg-indigo-700 dark:bg-indigo-800';
-  } else if (student.isGroupEntity) {
-      if (defaultMode === 'group_members') {
-          targetMode = 'group_members'; title = `第 ${student.group} 組 (全員)`; subtitle = 'Group Members'; icon = <GraduationCap size={20}/>; headerColor = 'bg-pink-600 dark:bg-pink-900'; subHeaderColor = 'bg-pink-700 dark:bg-pink-800';
-      } else {
-          targetMode = 'group'; title = `第 ${student.group} 組 (小組)`; subtitle = 'Group Entity'; icon = <Trophy size={20}/>; headerColor = 'bg-purple-600 dark:bg-purple-900'; subHeaderColor = 'bg-purple-700 dark:bg-purple-800';
-      }
+  switch (currentMode) {
+    case 'class':
+      targetMode = 'class';
+      title = '全班同學';
+      subtitle = 'Classroom';
+      icon = <Users size={20}/>;
+      headerColor = 'bg-indigo-600 dark:bg-indigo-900';
+      subHeaderColor = 'bg-indigo-700 dark:bg-indigo-800';
+      break;
+
+    case 'group_members':
+      targetMode = 'group_members';
+      // title 會直接使用傳入的 name，例如 "第 1 組 (全員)"
+      subtitle = 'Group Members';
+      icon = <GraduationCap size={20}/>;
+      headerColor = 'bg-pink-600 dark:bg-pink-900';
+      subHeaderColor = 'bg-pink-700 dark:bg-pink-800';
+      break;
+
+    case 'group': // 小組實體 (只加小組分)
+      targetMode = 'group';
+      subtitle = 'Group Entity';
+      icon = <Trophy size={20}/>;
+      headerColor = 'bg-purple-600 dark:bg-purple-900';
+      subHeaderColor = 'bg-purple-700 dark:bg-purple-800';
+      break;
+
+    default: // individual
+      targetMode = 'individual';
+      // 一般學生維持預設設定
+      break;
   }
 
-  // ✅ 優化：僅使用 score 進行判斷，移除對 value 的檢查
+  // 取得分數數值 (防呆)
   const getScore = (b) => {
     return Number(b.score) || 0;
   };
 
   const handleScoreClick = (behavior) => {
     let targetId = student.id;
-    if (targetMode === 'class') targetId = 'all'; 
-    else if (targetMode === 'group' || targetMode === 'group_members') targetId = student.group; 
+
+    // 3. 根據模式決定 targetId
+    if (targetMode === 'class') {
+        targetId = 'all'; 
+    } else if (targetMode === 'group' || targetMode === 'group_members') {
+        // 小組相關模式，目標 ID 來自 group 欄位
+        targetId = student.group; 
+    }
     
-    // 這裡同樣只需傳遞 score
+    // 傳遞正確的 targetId 與 mode 給 useScoring
     const safeBehavior = { ...behavior, score: getScore(behavior) };
     onScore(targetId, safeBehavior, targetMode);
   };
@@ -57,7 +90,7 @@ const ScoringModal = ({ isOpen, onClose, student, behaviors = [], onScore, defau
               </div>
               <div>
                   <h3 className="font-bold text-xl leading-tight">{title}</h3>
-                  <p className="text-xs text-white/60 font-medium tracking-wide mt-0.5">{subtitle}</p>
+                  {subtitle && <p className="text-xs text-white/60 font-medium tracking-wide mt-0.5">{subtitle}</p>}
               </div>
            </div>
            <button onClick={onClose} className="p-2 -mr-2 -mt-2 hover:bg-white/20 rounded-full text-white/80 transition-colors"><X size={20}/></button>

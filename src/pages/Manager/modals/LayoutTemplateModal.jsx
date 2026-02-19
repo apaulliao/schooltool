@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Map, X, Save, LayoutGrid, Trash2 } from 'lucide-react';
+import { cn } from '../../../utils/cn'; // ★
 
-const LayoutTemplateModal = ({ isOpen, onClose, currentLayout, onApplyTemplate, onSaveTemplate, templates, onDeleteTemplate }) => {
+const LayoutTemplateModal = ({ isOpen, onClose, currentLayout, onApplyTemplate, onSaveTemplate, templates, onDeleteTemplate, onShowDialog }) => {
     const [newTemplateName, setNewTemplateName] = useState('');
 
     if (!isOpen) return null;
@@ -31,7 +32,13 @@ const LayoutTemplateModal = ({ isOpen, onClose, currentLayout, onApplyTemplate, 
                                 placeholder="輸入樣板名稱 (例如: 英文課分組)"
                                 className="flex-1 p-2 border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg text-sm outline-none focus:border-blue-500"
                             />
-                            <button onClick={handleSave} disabled={!newTemplateName.trim()} className="px-4 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed">儲存</button>
+                            <button 
+                                onClick={handleSave} 
+                                disabled={!newTemplateName.trim()} 
+                                className="px-4 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                儲存
+                            </button>
                         </div>
                     </div>
 
@@ -44,8 +51,17 @@ const LayoutTemplateModal = ({ isOpen, onClose, currentLayout, onApplyTemplate, 
                                         <h5 className="font-bold text-slate-800 dark:text-white">{tpl.name}</h5>
                                         {tpl.type === 'custom' && (
                                             <button 
-                                                onClick={(e) => { e.stopPropagation(); if(confirm('確定刪除此樣板？')) onDeleteTemplate(tpl.id); }}
-                                                className="text-slate-300 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 p-1"
+                                                onClick={(e) => { 
+                                                    e.stopPropagation(); 
+                                                    onShowDialog({
+                                                        type: 'confirm',
+                                                        title: '刪除樣板',
+                                                        message: '確定刪除此樣板？',
+                                                        variant: 'danger',
+                                                        onConfirm: () => onDeleteTemplate(tpl.id)
+                                                    });
+                                                }}
+                                                className="text-slate-300 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 p-1 transition-colors"
                                             >
                                                 <Trash2 size={14}/>
                                             </button>
@@ -53,8 +69,22 @@ const LayoutTemplateModal = ({ isOpen, onClose, currentLayout, onApplyTemplate, 
                                     </div>
                                     <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">{tpl.description || (tpl.type === 'preset' ? '系統預設' : '自訂樣板')}</p>
                                     <button 
-                                        onClick={() => { if(confirm(`確定套用「${tpl.name}」嗎？\n這將會改變目前的教室尺寸與走道設定。\n(學生將會保留，若位置不足會移至未排區)`)) { onApplyTemplate(tpl); onClose(); } }}
-                                        className="w-full py-2 bg-slate-100 dark:bg-slate-600 hover:bg-blue-50 dark:hover:bg-slate-500 text-slate-600 dark:text-slate-200 hover:text-blue-600 dark:hover:text-white font-bold rounded-lg text-sm transition-colors"
+                                        onClick={() => { 
+                                            onShowDialog({
+                                                type: 'confirm',
+                                                title: '套用樣板',
+                                                message: `確定套用「${tpl.name}」嗎？\n這將會改變目前的教室尺寸與走道設定。\n(學生將會保留，若位置不足會移至未排區)`,
+                                                onConfirm: () => {
+                                                    onApplyTemplate(tpl);
+                                                    onClose();
+                                                }
+                                            });
+                                        }}
+                                        className={cn(
+                                            "w-full py-2 bg-slate-100 dark:bg-slate-600 rounded-lg text-sm font-bold transition-colors",
+                                            "hover:bg-blue-50 dark:hover:bg-slate-500",
+                                            "text-slate-600 dark:text-slate-200 hover:text-blue-600 dark:hover:text-white"
+                                        )}
                                     >
                                         套用此樣板
                                     </button>

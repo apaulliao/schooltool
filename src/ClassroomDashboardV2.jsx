@@ -382,12 +382,4 @@ const DashboardContent = ({ theme, cycleTheme}) => {
   );
 };
 
-const ClassroomDashboardV2 = (props) => {
-  return (
-    <ClassroomProvider>
-      <DashboardContent {...props} />
-    </ClassroomProvider>
-  );
-};
-
-export default ClassroomDashboardV2;
+export default DashboardContent

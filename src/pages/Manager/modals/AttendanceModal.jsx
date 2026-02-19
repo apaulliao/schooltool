@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { CalendarCheck, X, Copy, CheckCircle2, UserX, Clock, HelpCircle, AlertCircle } from 'lucide-react';
-// 🚀 修正路徑：確保指向正確的 constants 檔案
-import { ATTENDANCE_STATUS, ATTENDANCE_CYCLE } from '../../../utils/constants';
+import { CalendarCheck, X, Copy, AlertCircle } from 'lucide-react';
+import { ATTENDANCE_STATUS, ATTENDANCE_CYCLE, UI_THEME } from '../../../utils/constants'; // 確保引用 UI_THEME
+import { cn } from '../../../utils/cn'; // ★ 引入工具
 
 const AttendanceModal = ({ isOpen, onClose, students, attendanceRecords, onSave }) => {
   const [selectedDate, setSelectedDate] = useState(new Date().toLocaleDateString('en-CA'));
@@ -13,7 +13,6 @@ const AttendanceModal = ({ isOpen, onClose, students, attendanceRecords, onSave 
     }
   }, [isOpen, selectedDate, attendanceRecords]);
 
-  // 核心：循環切換邏輯
   const cycleStatus = (studentId) => {
     const current = currentStatus[studentId] || 'present';
     const currentIndex = ATTENDANCE_CYCLE.indexOf(current);
@@ -62,7 +61,6 @@ const AttendanceModal = ({ isOpen, onClose, students, attendanceRecords, onSave 
     navigator.clipboard.writeText(text).then(() => alert(`已複製 ${targetMonth} 月份的出缺席報表！\n直接貼上 Excel 即可。`));
   };
 
-  // 統計目前狀態
   const stats = Object.values(currentStatus).reduce((acc, status) => {
       acc[status] = (acc[status] || 0) + 1;
       return acc;
@@ -75,7 +73,7 @@ const AttendanceModal = ({ isOpen, onClose, students, attendanceRecords, onSave 
     <div className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
       <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-5xl overflow-hidden flex flex-col max-h-[90vh] border border-slate-200 dark:border-slate-700">
         
-        {/* Header - 保持深色背景 */}
+        {/* Header */}
         <div className="p-4 bg-slate-800 dark:bg-slate-950 border-b border-slate-700 flex justify-between items-center text-white shrink-0">
           <div className="flex items-center gap-4">
               <h3 className="font-bold text-xl flex items-center gap-2"><CalendarCheck size={24} className="text-emerald-400"/> 點名簿</h3>
@@ -119,14 +117,17 @@ const AttendanceModal = ({ isOpen, onClose, students, attendanceRecords, onSave 
                 <button
                   key={s.id}
                   onClick={() => cycleStatus(s.id)}
-                  className={`
-                    relative p-3 rounded-xl border-2 shadow-sm transition-all active:scale-95 flex flex-col items-center gap-2
-                    ${config.bg} ${config.border} ${config.color}
-                    ${statusKey !== 'present' ? 'ring-2 ring-offset-2 ring-slate-300 dark:ring-offset-slate-900 dark:ring-slate-600' : 'hover:border-blue-300 dark:hover:border-blue-500 hover:shadow-md'}
-                  `}
+                  className={cn(
+                    "relative p-3 rounded-xl border-2 shadow-sm transition-all active:scale-95 flex flex-col items-center gap-2",
+                    // 動態套用狀態顏色
+                    config.bg, config.border, config.color,
+                    // 狀態特效
+                    statusKey !== 'present' 
+                        ? "ring-2 ring-offset-2 ring-slate-300 dark:ring-offset-slate-900 dark:ring-slate-600" 
+                        : "hover:border-blue-300 dark:hover:border-blue-500 hover:shadow-md"
+                  )}
                   title="點擊切換狀態：出席 > 請假 > 缺席 > 遲到"
                 >
-                  {/* Status Icon Badge */}
                   <div className="absolute top-2 right-2">
                       {config.icon}
                   </div>
@@ -139,7 +140,7 @@ const AttendanceModal = ({ isOpen, onClose, students, attendanceRecords, onSave 
                       {s.name}
                   </div>
                   
-                  <div className={`text-xs font-bold px-2 py-0.5 rounded-full bg-white/50 dark:bg-black/20 border border-black/5 dark:border-white/5`}>
+                  <div className="text-xs font-bold px-2 py-0.5 rounded-full bg-white/50 dark:bg-black/20 border border-black/5 dark:border-white/5">
                       {config.label}
                   </div>
                 </button>

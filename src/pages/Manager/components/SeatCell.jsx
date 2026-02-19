@@ -1,6 +1,36 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, memo } from 'react';
 import { Lock ,Unlock } from 'lucide-react';
 import { GROUP_THEME, ATTENDANCE_STATUS, GENDER_THEME } from '../../../utils/constants';
+import { cn } from '../../../utils/cn'; 
+
+// ★ 修正：將 arePropsEqual 移到這裡 (組件外部)，這樣底部的 memo 才讀得到
+const arePropsEqual = (prevProps, nextProps) => {
+  // 1. 拖曳目標改變 (最優先)
+  if (prevProps.isDragTarget !== nextProps.isDragTarget) return false;
+  if (prevProps.onStudentClick !== nextProps.onStudentClick) return false;
+
+  // 2. 基本屬性改變
+  if (prevProps.isVoid !== nextProps.isVoid) return false;
+  if (prevProps.displayMode !== nextProps.displayMode) return false;
+  if (prevProps.mode !== nextProps.mode) return false;
+  if (prevProps.hoveredGroup !== nextProps.hoveredGroup) return false;
+  
+  // 3. 學生資料改變
+  const prevS = prevProps.student;
+  const nextS = nextProps.student;
+
+  if (!prevS || !nextS) return prevS === nextS;
+
+  return (
+    prevS.id === nextS.id &&
+    prevS.name === nextS.name &&
+    prevS.score === nextS.score &&
+    prevS.group === nextS.group &&
+    prevS.gender === nextS.gender &&
+    prevS.locked === nextS.locked &&
+    prevProps.attendanceStatus?.[prevS.id] === nextProps.attendanceStatus?.[nextS.id]
+  );
+};
 
 const SeatCell = ({ 
   row, col, student, 
@@ -11,6 +41,10 @@ const SeatCell = ({
   hoveredGroup,
   isCompact = false, 
   layoutRows,
+  // 新增的 Props
+  isDragTarget,
+  onCellDragOver, 
+  onCellDragLeave
 }) => {
   const [isShaking, setIsShaking] = useState(false);
   const prevScoreRef = useRef(student?.score || 0);
@@ -37,16 +71,16 @@ const SeatCell = ({
 
   const handleDragOver = (e) => {
     e.preventDefault();
-    if (!isVoid) e.currentTarget.classList.add('ring-4', 'ring-blue-300', 'scale-105', 'z-10');
+    if (onCellDragOver) onCellDragOver(e, row, col);
   };
 
   const handleDragLeave = (e) => {
-    e.currentTarget.classList.remove('ring-4', 'ring-blue-300', 'scale-105', 'z-10');
+    if (onCellDragLeave) onCellDragLeave(e);
   };
 
   const handleDrop = (e) => {
     e.preventDefault();
-    e.currentTarget.classList.remove('ring-4', 'ring-blue-300', 'scale-105', 'z-10');
+    if (onCellDragLeave) onCellDragLeave(e);
     
     const studentId = e.dataTransfer.getData("studentId");
     const sourceSeat = e.dataTransfer.getData("sourceSeat");
@@ -56,43 +90,45 @@ const SeatCell = ({
     }
   };
 
-const getHeightClass = (rows, isCompact) => {
-  if (isCompact) return 'min-h-[36px]';
+  const getHeightClass = (rows, isCompact) => {
+    if (isCompact) return 'min-h-[36px]';
+    if (rows <= 5) return 'min-h-[100px] md:min-h-[120x]';
+    if (rows <= 6) return 'min-h-[80px] md:min-h-[86px]';
+    if (rows <= 7) return 'min-h-[50px] md:min-h-[80px]';
+    return 'min-h-[50px] md:min-h-[64px]'; 
+  };
 
-  if (rows <= 5) return 'min-h-[100px] md:min-h-[120x]';
-  if (rows <= 6) return 'min-h-[80px] md:min-h-[86px]';
-  if (rows <= 7) return 'min-h-[50px] md:min-h-[80px]';
+  const heightClass = getHeightClass(layoutRows, isCompact);
+  const nameLength = student?.name?.length || 0;
+  
+  const getNameSizeClass = (rows, len) => {
+    if (rows <= 5) return len > 3 ? 'text-2xl' : 'text-3xl';
+    if (rows <= 6) return len > 3 ? 'text-xl' : 'text-2xl';
+    if (rows <= 7) return len > 3 ? 'text-lg' : 'text-xl';
+    return len > 3 ? 'text-sm' : 'text-base md:text-lg';
+  };
 
-  return 'min-h-[50px] md:min-h-[64px]'; // 8 列以上
-};
+  let nameSizeClass = getNameSizeClass(layoutRows, nameLength);
 
-const heightClass = getHeightClass(layoutRows, isCompact);
-
-const getNameSizeClass = (rows, nameLength) => {
-  if (rows <= 5) return nameLength > 3 ? 'text-2xl' : 'text-3xl';
-  if (rows <= 6) return nameLength > 3 ? 'text-xl' : 'text-2xl';
-  if (rows <= 7) return nameLength > 3 ? 'text-lg' : 'text-xl';
-  return nameLength > 3 ? 'text-sm' : 'text-base md:text-lg';
-};
-
-let nameSizeClass = getNameSizeClass(layoutRows, name.length);
-
-
+  // --- 1. 虛擬座位 (Void) ---
   if (isVoid) {
     return (
         <div 
             onContextMenu={handleContextMenu}
-            className={`
-              w-full ${heightClass}
-              transition-colors duration-200 
-              ${mode === 'arrange' ? 'bg-slate-100/50 border border-dashed border-slate-200 cursor-cell hover:bg-slate-200/50 relative group' : 'opacity-0 pointer-events-none'} 'bg-slate-100/50 border border-dashed border-slate-200 cursor-cell hover:bg-slate-200/50 relative group' : 'opacity-0 pointer-events-none'}
-            `}
+            className={cn(
+              "w-full transition-colors duration-200",
+              heightClass,
+              mode === 'arrange' 
+                ? "bg-slate-100/50 border border-dashed border-slate-200 cursor-cell hover:bg-slate-200/50 relative group" 
+                : "opacity-0 pointer-events-none"
+            )}
         >
              {mode === 'arrange' && <span className="absolute inset-0 flex items-center justify-center text-[14px] text-slate-300 opacity-0 group-hover:opacity-100 select-none">右鍵復原</span>}
         </div>
     );
   }
 
+  // --- 2. 空座位 (Empty) ---
   if (!student) {
     return (
       <div 
@@ -100,8 +136,17 @@ let nameSizeClass = getNameSizeClass(layoutRows, name.length);
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        className={`w-full ${heightClass} ${mode === 'arrange' ? 'rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-300 bg-slate-50/50 dark:bg-slate-600 flex items-center justify-center text-slate-300 dark:text-white transition-all hover:bg-slate-100 hover:dark:bg-slate-800 hover:border-slate-300 ' : ''}
-		${mode === 'arrange' ? 'cursor-cell' : ''}`}
+        className={cn(
+            "w-full transition-all flex items-center justify-center",
+            heightClass,
+            mode === 'arrange' && [
+                "rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-300",
+                "bg-slate-50/50 dark:bg-slate-600 text-slate-300 dark:text-white",
+                "hover:bg-slate-100 hover:dark:bg-slate-800 hover:border-slate-300 cursor-cell"
+            ],
+            // 拖曳視覺引導
+            (isDragTarget && mode === 'arrange') && "ring-4 ring-yellow-400 bg-yellow-50/50 dark:bg-yellow-900/30 z-20 scale-105 border-yellow-400"
+        )}
         title={mode === 'arrange' ? '右鍵設為走道' : ''}
       >
         {mode === 'arrange' && <span className="text-base font-bold">空</span>}
@@ -109,19 +154,13 @@ let nameSizeClass = getNameSizeClass(layoutRows, name.length);
     );
   }
 
-  // --- 樣式計算邏輯 ---
-  
-  // 預設樣式
+  // --- 3. 有學生 (Student) - 樣式邏輯 ---
   let bgClass = "bg-white dark:bg-slate-900/80";
   let borderClass = "border-slate-700 dark:border-slate-200 border-b-[3px]"; 
   let textClass = "text-slate-700 dark:text-slate-200";
-  //let nameSizeClass = student.name.length > 3 ? 'text-sm' : 'text-base md:text-lg'; 
 
-  // A. 顯示模式切換
   if (displayMode === 'gender') {
     const genderStyle = GENDER_THEME[student.gender] || GENDER_THEME.M;
-    
-    // 現在 genderStyle.bg 已經包含 dark:class，直接引用
     bgClass = genderStyle.bg;
     borderClass = `${genderStyle.border} border-b-[3px]`;
     textClass = genderStyle.text;
@@ -130,14 +169,9 @@ let nameSizeClass = getNameSizeClass(layoutRows, name.length);
     const groupNum = parseInt(student.group) || 0;
     const colorIndex = groupNum % 9;
     const theme = GROUP_THEME[colorIndex] || GROUP_THEME[0];
-
-    // 同理，theme.border 已包含 dark:border...，無需再組合
     borderClass = `${theme.border} border-b-[4px]`;
-    // 這裡我們選擇保持背景簡單，只改變邊框顏色，所以 bgClass 維持預設
-    // 若想跟隨小組背景，可改為：bgClass = theme.bg;
   }
 
-  // B. 出席狀態 (優先權最高)
   if (statusKey !== 'present' && statusKey !== 'late') {
       bgClass = statusConfig.bg; 
       textClass = statusConfig.color;
@@ -145,7 +179,6 @@ let nameSizeClass = getNameSizeClass(layoutRows, name.length);
   }
 
   const isHighlighted = hoveredGroup && String(student.group) === String(hoveredGroup);
-  const highlightClass = isHighlighted ? 'ring-4 ring-yellow-400 scale-105 z-20 shadow-xl' : '';
   const isLocked = student.locked;
   const isAbsentOrPersonal = statusKey === 'absent' || statusKey === 'personal';
 
@@ -161,39 +194,52 @@ let nameSizeClass = getNameSizeClass(layoutRows, name.length);
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
       onClick={() => {
-		  
         if (mode === 'arrange' && isLocked) {
            onToggleLock(student.id);
         } else {
            onStudentClick(student);
         }
-		}}
-      className={`
-        relative w-full ${heightClass} rounded-xl border shadow-sm transition-all duration-200 
-        flex flex-col items-center justify-center select-none overflow-hidden
-        ${bgClass} ${borderClass} ${textClass} ${highlightClass}
-        ${statusKey !== 'present' ? '' : 'hover:shadow-md hover:-translate-y-0.5'}
-        ${mode === 'arrange' && !isLocked ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'}
-        ${isShaking ? 'animate-shake ring-2 ring-rose-400' : ''} 
-      `}
+      }}
+      className={cn(
+        "relative w-full rounded-xl border shadow-sm transition-all duration-200",
+        "flex flex-col items-center justify-center select-none overflow-hidden",
+        
+        heightClass,
+        bgClass, 
+        borderClass, 
+        textClass,
+        
+        statusKey === 'present' && "hover:shadow-md hover:-translate-y-0.5",
+        
+        (mode === 'arrange' && !isLocked) 
+            ? "cursor-grab active:cursor-grabbing" 
+            : "cursor-pointer",
+            
+        isShaking && "animate-shake ring-2 ring-rose-400",
+        isHighlighted && "ring-4 ring-yellow-400 scale-105 z-20 shadow-xl",
+
+        // 拖曳視覺引導
+        (isDragTarget && mode === 'arrange') && "ring-4 ring-blue-400 dark:ring-blue-500 scale-105 z-20 shadow-xl opacity-90"
+      )}
       title={mode === 'arrange' ? '右鍵設為走道' : ''}
     >
       {/* 1. 左上角：座號標籤 */}
-      <div className={`
-          absolute top-1 left-2 px-1.5 pt-0.5 pb-1 
-           rounded-br-lg backdrop-blur-sm
-          text-[12px] md:text-base font-black font-mono leading-none z-10
-          ${isAbsentOrPersonal ? 'text-white/70' : 'text-slate-700 dark:text-white'}
-      `}>
+      <div className={cn(
+          "absolute top-1 left-2 px-1.5 pt-0.5 pb-1 rounded-br-lg backdrop-blur-sm",
+          "text-[12px] md:text-base font-black font-mono leading-none z-10",
+          isAbsentOrPersonal ? "text-white/70" : "text-slate-700 dark:text-white"
+      )}>
           {student.number}
       </div>
 
       {/* 2. 左下角：分數氣泡 */}
       {!isAbsentOrPersonal && (student.score !== 0 && student.score !== undefined) && (
-          <div className={`
-              absolute bottom-1 left-1 px-1 py-0.5 rounded-full md:text-sm font-black shadow-sm z-10
-              ${student.score > 0 ? 'bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-700' : 'bg-rose-100 dark:bg-rose-900/50 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-700'}
-          `}>
+          <div className={cn(
+              "absolute bottom-1 left-1 px-1 py-0.5 rounded-full md:text-sm font-black shadow-sm z-10",
+              student.score > 0 
+                ? "bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-700"
+                : "bg-rose-100 dark:bg-rose-900/50 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-700"
+          )}>
              {student.score > 0 ? '+' : ''}{student.score}
           </div>
       )}
@@ -202,8 +248,14 @@ let nameSizeClass = getNameSizeClass(layoutRows, name.length);
       {mode === 'arrange' && (
         <div className="absolute top-0 right-1 z-10">
             <button 
+				onMouseDown={(e) => e.stopPropagation()}
                 onClick={(e) => { e.stopPropagation(); onToggleLock(student.id); }}
-                className={`p-1 rounded-full transition-colors ${isLocked ? 'text-slate-500 bg-slate-50 dark:bg-slate-900/30' : 'text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
+                className={cn(
+                    "p-1 rounded-full transition-colors",
+                    isLocked 
+                        ? "text-slate-500 bg-slate-50 dark:bg-slate-900/30" 
+                        : "text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
+                )}
             >
                 {isLocked ? <Lock size={12} fill="currentColor"/> : <Unlock size={12}/>}
             </button>
@@ -222,20 +274,19 @@ let nameSizeClass = getNameSizeClass(layoutRows, name.length);
 
       {/* 5. 中央：姓名 */}
       <div className="w-full px-1 flex flex-col items-center justify-center z-0">
-         <span className={`
-            font-bold leading-tight text-center line-clamp-2
-            ${nameSizeClass}
-         `}>
+         <span className={cn(
+            "font-bold leading-tight text-center line-clamp-2",
+            nameSizeClass
+         )}>
            {student.name}
          </span>
          
          {/* 狀態標籤 */}
          {statusKey !== 'present' && statusKey !== 'late' && (
-             <span className={`
-                mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold flex items-center gap-1 shadow-sm
-                bg-white/20 backdrop-blur-sm border border-white/10
-                text-current
-             `}>
+             <span className={cn(
+                "mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold flex items-center gap-1 shadow-sm",
+                "bg-white/20 backdrop-blur-sm border border-white/10 text-current"
+             )}>
                 {statusConfig.icon} {statusConfig.label}
              </span>
          )}
@@ -243,15 +294,17 @@ let nameSizeClass = getNameSizeClass(layoutRows, name.length);
 
       {/* 背景裝飾 (性別模式) */}
       {displayMode === 'gender' && (
-         <div className={`absolute bottom-0 right-0 w-8 h-8 rounded-tl-3xl opacity-20 pointer-events-none 
-            ${GENDER_THEME[student.gender]?.decoration || GENDER_THEME.M.decoration}
-         `} />
+         <div className={cn(
+             "absolute bottom-0 right-0 w-8 h-8 rounded-tl-3xl opacity-20 pointer-events-none",
+             GENDER_THEME[student.gender]?.decoration || GENDER_THEME.M.decoration
+         )} />
       )}
 
     </div>
   );
 };
 
+// 輔助圖示組件 (不變)
 const UsersGroupIcon = ({ size = 12 }) => (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
         <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
@@ -261,4 +314,4 @@ const UsersGroupIcon = ({ size = 12 }) => (
     </svg>
 );
 
-export default SeatCell;
+export default memo(SeatCell, arePropsEqual);

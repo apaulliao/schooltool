@@ -1,39 +1,37 @@
+// src/hooks/useScoring.js
 import { useState, useEffect } from 'react';
 import { useAudio } from './useAudio';
 import { ATTENDANCE_STATUS } from '../utils/constants';
 
 const MAX_LOGS = 100;
-const MILESTONE_STEP = 10; // 設定每 10 分觸發一次里程碑
+const MILESTONE_STEP = 10; 
 
 export const useScoring = (currentClass, updateClass) => {
     const { playAudio } = useAudio();
     const [feedbacks, setFeedbacks] = useState([]);
 
-    // --- 1. 資料邏輯層 ---
     const scoreStudent = (targetId, behavior, mode) => {
+        // ... (前面的邏輯保持不變：時間戳記、分數計算、名單過濾、Log 紀錄、資料更新) ...
         const timestamp = Date.now();
         const scoreValue = Number(behavior.value !== undefined ? behavior.value : (behavior.score || 0));
-        const todayDate = new Date().toISOString().split('T')[0];
+        const todayDate = new Date().toLocaleDateString('en-CA');
         const todayAttendance = currentClass.attendanceRecords?.[todayDate] || {};
 
-        // 決定目標學生
         let targetStudents = [];
         if (mode === 'individual') targetStudents = currentClass.students.filter(s => s.id === targetId);
         else if (mode === 'class') targetStudents = currentClass.students;
         else if (mode === 'group_members') targetStudents = currentClass.students.filter(s => s.group === targetId);
         else if (mode === 'group') targetStudents = []; 
 
-        // 過濾出席
         let validStudents = targetStudents;
         if (mode === 'class' || mode === 'group_members') {
             validStudents = targetStudents.filter(s => {
                 const statusKey = todayAttendance[s.id] || 'present';
                 if (ATTENDANCE_STATUS && ATTENDANCE_STATUS[statusKey]) return ATTENDANCE_STATUS[statusKey].isPresent;
-                return statusKey !== 'absent' && statusKey !== 'personal' && statusKey !== 'leave';
+                return statusKey !== 'absent' && statusKey !== 'personal' && statusKey !== 'leave' && statusKey !== 'sick';
             });
         }
 
-        // 構建 Log
         let targetName = '未知目標';
         if (mode === 'class') targetName = '全班同學';
         else if (mode === 'group') targetName = `第 ${targetId} 組 (小組)`;
@@ -58,9 +56,8 @@ export const useScoring = (currentClass, updateClass) => {
             validStudentIds: validStudents.map(s => s.id)
         };
 
-        // 更新資料與偵測里程碑
         let updates = {};
-        let milestoneEvents = []; // 收集里程碑事件
+        let milestoneEvents = []; 
 
         if (mode === 'group') {
             const currentGroupScores = currentClass.groupScores || {};
@@ -68,29 +65,17 @@ export const useScoring = (currentClass, updateClass) => {
             const newScore = oldScore + scoreValue;
             updates.groupScores = { ...currentGroupScores, [targetId]: newScore };
 
-            // 偵測小組里程碑 (只在加分時觸發，且必須跨越 10 的倍數)
             if (scoreValue > 0 && Math.floor(newScore / MILESTONE_STEP) > Math.floor(oldScore / MILESTONE_STEP)) {
-                milestoneEvents.push({
-                    type: 'group',
-                    id: targetId,
-                    score: Math.floor(newScore / MILESTONE_STEP) * MILESTONE_STEP // 顯示 10, 20, 30...
-                });
+                milestoneEvents.push({ type: 'group', id: targetId, score: Math.floor(newScore / MILESTONE_STEP) * MILESTONE_STEP });
             }
-
         } else {
             const validIds = new Set(validStudents.map(s => s.id));
             updates.students = currentClass.students.map(s => {
                 if (validIds.has(s.id)) {
                     const oldScore = s.score || 0;
                     const newScore = oldScore + scoreValue;
-                    
-                    // 偵測個人里程碑
                     if (scoreValue > 0 && Math.floor(newScore / MILESTONE_STEP) > Math.floor(oldScore / MILESTONE_STEP)) {
-                        milestoneEvents.push({
-                            type: 'student',
-                            id: s.id,
-                            score: Math.floor(newScore / MILESTONE_STEP) * MILESTONE_STEP
-                        });
+                        milestoneEvents.push({ type: 'student', id: s.id, score: Math.floor(newScore / MILESTONE_STEP) * MILESTONE_STEP });
                     }
                     return { ...s, score: newScore };
                 }
@@ -100,26 +85,43 @@ export const useScoring = (currentClass, updateClass) => {
 
         const currentLogs = currentClass.scoreLogs || [];
         newLog.milestones = milestoneEvents; 
-        
         const updatedLogs = [...currentLogs, newLog].slice(-MAX_LOGS);
-
         updateClass({ ...currentClass, ...updates, scoreLogs: updatedLogs });
 
-        // --- 觸發視覺效果 (包含一般加分 與 里程碑) ---
-        
-        // 1. 播放基本音效 (加/扣分) - 這裡先播放，如果有里程碑會再播放歡呼
-        if (effectType === 'positive') playAudio('positive');
-        else if (effectType === 'negative') playAudio('negative');
+        // --- 視覺與音效 ---
+        if (scoreValue > 0) {
+            if (mode === 'class') playAudio('coin_class');
+            else if (mode === 'group' || mode === 'group_members') playAudio('coin_group');
+            else playAudio('coin');
+        } else if (scoreValue < 0) {
+            playAudio('negative'); 
+        }
 
-        // 2. 一般加分 Feedbacks
         const newFeedbacks = [];
         
-        if (mode === 'group') {
+        // ★ 修改重點：小組加分現在也顯示在「螢幕正中央」，並調整文字標籤
+        if (mode === 'group' || mode === 'group_members') {
             newFeedbacks.push({
-                id: `fb_${timestamp}_GROUP`, x: window.innerWidth - 240, y: window.innerHeight / 2 - 100,
-                value: scoreValue, label: `第 ${targetId} 組`, type: 'group'
+                id: `fb_${timestamp}_GROUP`, 
+                x: window.innerWidth / 2, // 改為正中央
+                y: window.innerHeight / 2, 
+                value: scoreValue, 
+                label: `第 ${targetId} 組加分`, // 更明確的標籤
+                type: 'group' // 這裡保留 type: 'group'，我們會在 ScoreFeedback 裡把它升級
             });
-        } else {
+        } else if (mode === 'class') {
+            newFeedbacks.push({
+                id: `fb_${timestamp}_CLASS`, 
+                x: window.innerWidth / 2, 
+                y: window.innerHeight / 2,
+                value: scoreValue, 
+                label: '全班加分', 
+                type: 'class'
+            });
+        } 
+        
+        // 個人加分 (保持原樣，顯示在卡片上)
+        if (mode !== 'group' && mode !== 'class') {
             (validStudents || []).forEach((s, index) => {
                 const el = document.getElementById(`student-card-${s.id}`);
                 let rect = { left: window.innerWidth / 2, top: window.innerHeight / 2, width: 0 };
@@ -134,19 +136,12 @@ export const useScoring = (currentClass, updateClass) => {
                     type: 'student'
                 });
             });
-            if (mode === 'class') {
-                newFeedbacks.push({
-                    id: `fb_${timestamp}_CLASS`, x: window.innerWidth / 2, y: window.innerHeight / 2,
-                    value: scoreValue, label: '全班獎勵', type: 'class'
-                });
-            }
         }
 
-        // 3. 里程碑 Feedbacks 與音效
+        // 里程碑 (保持原樣，但 ScoreFeedback 會負責加強特效)
         milestoneEvents.forEach(event => {
             let x = window.innerWidth / 2;
             let y = window.innerHeight / 2;
-            
             if (event.type === 'student') {
                 const el = document.getElementById(`student-card-${event.id}`);
                 if (el) {
@@ -155,17 +150,13 @@ export const useScoring = (currentClass, updateClass) => {
                     y = rect.top + rect.height / 2;
                 }
             } else if (event.type === 'group') {
-                x = window.innerWidth - 200; // 靠近右側戰況欄
-                y = 100;
+                // 小組里程碑也改到中間比較有氣勢
+                x = window.innerWidth / 2;
+                y = window.innerHeight / 2;
             }
-
             newFeedbacks.push({
                 id: `milestone_${timestamp}_${event.id}`,
-                x, y,
-                value: event.score,
-                label: '里程碑達成！',
-                type: 'milestone',
-                milestoneType: event.type // 'student' or 'group'
+                x, y, value: event.score, label: '里程碑達成！', type: 'milestone', milestoneType: event.type
             });
         });
 
@@ -174,19 +165,15 @@ export const useScoring = (currentClass, updateClass) => {
             setTimeout(() => {
                 const idsToRemove = new Set(newFeedbacks.map(f => f.id));
                 setFeedbacks(prev => prev.filter(f => !idsToRemove.has(f.id)));
-            }, 3000); // 延長顯示時間，讓里程碑特效可以演完
+            }, 3000);
         }
 
-        // ✅ 修改：若有里程碑事件，播放歡呼音效 (applause)
         if (milestoneEvents.length > 0) {
-            // 延遲一點點播放，讓它跟 "positive" 音效稍微錯開，更有層次感
-            setTimeout(() => {
-                playAudio('applause');
-            }, 100);
+            setTimeout(() => { playAudio('applause'); }, 400); 
         }
     };
 
-    const resetScores = (type) => {
+    const resetScores = (type) => { /* ...保持不變... */ 
         let updates = {};
         if (type === 'student') {
             updates.students = currentClass.students.map(s => ({ ...s, score: 0 }));
@@ -197,7 +184,6 @@ export const useScoring = (currentClass, updateClass) => {
         }
         updateClass({ ...currentClass, ...updates });
     };
-
     const updateBehaviors = (newBehaviors) => updateClass({ ...currentClass, behaviors: newBehaviors });
     const clearScoreLogs = () => updateClass({ ...currentClass, scoreLogs: [] });
 

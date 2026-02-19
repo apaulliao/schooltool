@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Table, X, Users, User, Copy, Download, Trash2, CalendarDays } from 'lucide-react';
+import { cn } from '../../../utils/cn'; // ★
 
 const ExportStatsModal = ({ isOpen, onClose, students, groupScores, attendanceRecords, onResetScores, onShowDialog }) => {
   if (!isOpen) return null;
@@ -26,6 +27,7 @@ const ExportStatsModal = ({ isOpen, onClose, students, groupScores, attendanceRe
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a'); link.href = url; link.download = filename; link.click(); URL.revokeObjectURL(url);
   };
+  
   const copyToClipboard = (headers, rows) => {
       const text = [headers.join('\t'), ...rows.map(row => row.join('\t'))].join('\n');
       navigator.clipboard.writeText(text).then(() => {
@@ -50,6 +52,9 @@ const ExportStatsModal = ({ isOpen, onClose, students, groupScores, attendanceRe
       if (mode === 'csv') { downloadCSV(generateCSV(headers, rows), `小組成績統計_${new Date().toLocaleDateString()}.csv`); } else { copyToClipboard(headers, rows); }
   };
 
+  // 共用按鈕樣式
+  const actionBtnClass = "text-xs px-3 py-1.5 rounded-lg font-bold flex items-center gap-1 transition-colors";
+
   return (
     <div className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
       <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh] border border-slate-200 dark:border-slate-700">
@@ -67,8 +72,8 @@ const ExportStatsModal = ({ isOpen, onClose, students, groupScores, attendanceRe
             <div className="flex justify-between items-center mb-3">
                 <h4 className="font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2"><Users size={18} className="text-purple-500"/> 小組競賽榜</h4>
                 <div className="flex gap-2">
-                    <button onClick={() => handleExportGroup('copy')} className="text-xs bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 px-3 py-1.5 rounded-lg text-slate-600 dark:text-slate-300 font-bold flex items-center gap-1 transition-colors"><Copy size={14}/> 複製</button>
-                    <button onClick={() => handleExportGroup('csv')} className="text-xs bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 px-3 py-1.5 rounded-lg font-bold flex items-center gap-1 transition-colors"><Download size={14}/> 下載 CSV</button>
+                    <button onClick={() => handleExportGroup('copy')} className={cn(actionBtnClass, "bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300")}><Copy size={14}/> 複製</button>
+                    <button onClick={() => handleExportGroup('csv')} className={cn(actionBtnClass, "bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800")}><Download size={14}/> 下載 CSV</button>
                 </div>
             </div>
             
@@ -95,8 +100,8 @@ const ExportStatsModal = ({ isOpen, onClose, students, groupScores, attendanceRe
             <div className="flex justify-between items-center mb-3">
                 <h4 className="font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2"><User size={18} className="text-blue-500"/> 學生個人紀錄 (含出缺席)</h4>
                 <div className="flex gap-2">
-                    <button onClick={() => handleExportIndividual('copy')} className="text-xs bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 px-3 py-1.5 rounded-lg text-slate-600 dark:text-slate-300 font-bold flex items-center gap-1 transition-colors"><Copy size={14}/> 複製</button>
-                    <button onClick={() => handleExportIndividual('csv')} className="text-xs bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 px-3 py-1.5 rounded-lg font-bold flex items-center gap-1 transition-colors"><Download size={14}/> 下載 CSV</button>
+                    <button onClick={() => handleExportIndividual('copy')} className={cn(actionBtnClass, "bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300")}><Copy size={14}/> 複製</button>
+                    <button onClick={() => handleExportIndividual('csv')} className={cn(actionBtnClass, "bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800")}><Download size={14}/> 下載 CSV</button>
                 </div>
             </div>
             
@@ -118,7 +123,10 @@ const ExportStatsModal = ({ isOpen, onClose, students, groupScores, attendanceRe
                                 <td className="p-3 font-mono text-slate-500 dark:text-slate-400">{s.number}</td>
                                 <td className="p-3 font-bold text-slate-700 dark:text-slate-200">{s.name}</td>
                                 <td className="p-3 text-center text-slate-400 dark:text-slate-500 text-xs">{s.group}</td>
-                                <td className={`p-3 text-right font-mono font-bold ${s.score < 0 ? 'text-rose-500' : 'text-slate-700 dark:text-slate-200'}`}>{s.score}</td>
+                                <td className={cn(
+                                    "p-3 text-right font-mono font-bold",
+                                    s.score < 0 ? 'text-rose-500' : 'text-slate-700 dark:text-slate-200'
+                                )}>{s.score}</td>
                                 <td className="p-3 text-center font-bold text-rose-200 dark:text-rose-900">
                                     {s.absent > 0 && <span className="text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-900/30 px-1.5 py-0.5 rounded">{s.absent}</span>}
                                 </td>
@@ -157,6 +165,7 @@ const ExportStatsModal = ({ isOpen, onClose, students, groupScores, attendanceRe
                     >
                         <Trash2 size={14}/> 結算個人分數
                     </button>
+                    
                     <button 
                         onClick={() => onShowDialog({
                             type: 'confirm',

@@ -1,5 +1,5 @@
 // src/hooks/useSeating.js
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback,useRef } from 'react'; // 1. 引入 useCallback
 import { calculateShuffledSeats } from '../utils/seatAlgorithms';
 
 const DEFAULT_TEMPLATES = [
@@ -9,7 +9,25 @@ const DEFAULT_TEMPLATES = [
 ];
 
 export const useSeating = (currentClass, updateClass) => {
-    const [seatMode, setSeatMode] = useState('replace'); // replace or swap
+
+const currentClassRef = useRef(currentClass);
+
+// 每次 render 都更新 ref
+useEffect(() => {
+    currentClassRef.current = currentClass;
+}, [currentClass]);
+
+// toggleLock 改成讀取 Ref
+const toggleLock = useCallback((studentId) => {
+    const current = currentClassRef.current; // 讀取最新的
+    const updatedStudents = current.students.map(s => 
+        s.id === studentId ? { ...s, locked: !s.locked } : s
+    );
+    updateClass({ ...current, students: updatedStudents });
+}, [updateClass]); // 移除 currentClass 依賴！
+
+
+    const [seatMode, setSeatMode] = useState('replace');
     const [templates, setTemplates] = useState(() => {
         const saved = localStorage.getItem('schooltool_templates');
         let savedTemplates = [];
@@ -26,30 +44,25 @@ export const useSeating = (currentClass, updateClass) => {
         localStorage.setItem('schooltool_templates', JSON.stringify(templates));
     }, [templates]);
 
-    // 未排座位的學生
     const unseatedStudents = currentClass.students.filter(s => {
         return !Object.values(currentClass.layout.seats || {}).includes(s.id);
     });
 
-    const toggleLock = (studentId) => {
-        const updatedStudents = currentClass.students.map(s => s.id === studentId ? { ...s, locked: !s.locked } : s);
-        updateClass({ ...currentClass, students: updatedStudents });
-    };
 
-    const toggleVoid = (row, col) => {
+    const toggleVoid = useCallback((row, col) => {
         const key = `${row}-${col}`;
         const voidSeats = currentClass.layout.voidSeats || [];
         const newVoidSeats = voidSeats.includes(key) ? voidSeats.filter(k => k !== key) : [...voidSeats, key];
         const newSeats = { ...currentClass.layout.seats };
         if (newSeats[key]) delete newSeats[key];
         updateClass({ ...currentClass, layout: { ...currentClass.layout, voidSeats: newVoidSeats, seats: newSeats } });
-    };
+    }, [currentClass, updateClass]);
 
-    const clearSeats = () => {
+    const clearSeats = useCallback(() => {
         updateClass({ ...currentClass, layout: { ...currentClass.layout, seats: {} } });
-    };
+    }, [currentClass, updateClass]);
 
-    const seatDrop = (studentId, row, col, sourceSeat) => {
+    const seatDrop = useCallback((studentId, row, col, sourceSeat) => {
         const newSeats = { ...currentClass.layout.seats };
         const targetKey = `${row}-${col}`;
         const targetStudentId = newSeats[targetKey];
@@ -66,47 +79,45 @@ export const useSeating = (currentClass, updateClass) => {
             newSeats[targetKey] = studentId;
         }
         updateClass({ ...currentClass, layout: { ...currentClass.layout, seats: newSeats } });
-    };
+    }, [currentClass, updateClass, seatMode]); // 這裡要依賴 seatMode
 
-    const sidebarDrop = (sourceSeat) => {
+    const sidebarDrop = useCallback((sourceSeat) => {
         if (sourceSeat) {
             const newLayout = { ...currentClass.layout };
             newLayout.seats = { ...currentClass.layout.seats };
             delete newLayout.seats[sourceSeat];
             updateClass({ ...currentClass, layout: newLayout });
         }
-    };
+    }, [currentClass, updateClass]);
 
-    const shuffleSeats = (mode) => {
+    const shuffleSeats = useCallback((mode) => {
         const lockedAssignments = {};
         Object.entries(currentClass.layout.seats).forEach(([key, studentId]) => {
             const student = currentClass.students.find(s => s.id === studentId);
             if (student && student.locked) lockedAssignments[key] = studentId;
         });
 
-        // 呼叫純函數演算法
         const newSeats = calculateShuffledSeats(mode, currentClass.students, currentClass.layout, lockedAssignments);
         updateClass({ ...currentClass, layout: { ...currentClass.layout, seats: newSeats } });
-    };
+    }, [currentClass, updateClass]);
 
-    const saveTemplate = (name) => {
+    const saveTemplate = useCallback((name) => {
         const newTemplate = {
             id: `tpl_${Date.now()}`, name: name, type: 'custom',
             layout: { voidSeats: currentClass.layout.voidSeats, rows: currentClass.layout.rows, cols: currentClass.layout.cols }
         };
         setTemplates(prev => [...prev, newTemplate]);
-    };
+    }, [currentClass]);
     
-    const deleteTemplate = (id) => setTemplates(prev => prev.filter(t => t.id !== id));
+    const deleteTemplate = useCallback((id) => setTemplates(prev => prev.filter(t => t.id !== id)), []);
 
-    const applyTemplate = (template) => {
+    const applyTemplate = useCallback((template) => {
         let newLayout = { ...currentClass.layout };
         if (template.type === 'custom') {
             newLayout.rows = template.layout.rows;
             newLayout.cols = template.layout.cols;
             newLayout.voidSeats = template.layout.voidSeats;
         } else {
-            // Preset 邏輯
             newLayout.voidSeats = [];
             if (template.id === 'tpl_standard') { newLayout.rows = 6; newLayout.cols = 5; }
             else if (template.id === 'tpl_group') {
@@ -118,7 +129,7 @@ export const useSeating = (currentClass, updateClass) => {
                 for (let y = 0; y <= 3; y++) { newLayout.voidSeats.push(`${y}-2`, `${y}-3`); }
             }
         }
-        // 清理超出範圍的座位
+        
         const newSeats = { ...newLayout.seats };
         Object.keys(newSeats).forEach(key => {
             const [r, c] = key.split('-').map(Number);
@@ -126,11 +137,11 @@ export const useSeating = (currentClass, updateClass) => {
         });
         newLayout.seats = newSeats;
         updateClass({ ...currentClass, layout: newLayout });
-    };
+    }, [currentClass, updateClass]);
     
-    const importStudentList = (newStudents) => {
+    const importStudentList = useCallback((newStudents) => {
         updateClass({ ...currentClass, students: newStudents, layout: { ...currentClass.layout, seats: {}, rows: 4, cols: 8, doorSide: 'right', voidSeats: [] }, scoreLogs: [] });
-    };
+    }, [currentClass, updateClass]);
 
     return {
         seatMode, setSeatMode, templates, unseatedStudents,

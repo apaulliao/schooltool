@@ -139,3 +139,28 @@ html.dark {
     transform: scale(1) !important;
   }
 }
+
+/* --- 5. 觸控拖曳優化 (Touch Support) --- */
+
+/* 拖曳中的元素樣式 (由 polyfill 自動加入的 class) */
+.dnd-poly-drag-image {
+  opacity: 0.9 !important;
+  transform: scale(1.05); /* 讓拖起來的卡片稍微放大，更有「抓起來」的感覺 */
+  border-radius: 12px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+  z-index: 9999;
+}
+
+/* 確保所有可拖曳元素在手機上不會觸發「選取文字」或「長按選單」 */
+[draggable="true"] {
+  -webkit-touch-callout: none; /* iOS Safari */
+  -webkit-user-select: none;   /* Safari */
+  user-select: none;           /* Standard */
+  /* 關鍵：告訴瀏覽器這區域由我們程式控制，不要自行捲動，除非是在可捲動區域內 */
+  touch-action: none;          
+}
+
+/* 但在列表或網格容器上，我們要允許捲動 */
+.overflow-auto, .overflow-y-auto {
+  touch-action: pan-y; /* 允許垂直捲動 */
+}

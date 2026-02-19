@@ -50,6 +50,7 @@ const DialogModal = ({
       } else {
           onConfirm(true);
       }
+	  onClose();
       // 注意：通常由父層決定是否關閉，或在這裡呼叫 onClose()
   };
 
@@ -95,6 +96,7 @@ const DialogModal = ({
           
           {type === 'prompt' && (
             <input 
+			  id="dialog-input" name="input"
               ref={inputRef}
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
