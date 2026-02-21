@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { UI_THEME } from '../../../utils/constants';
 import { useOS } from '../../../context/OSContext';
 import ZhuyinRenderer from '../../../components/common/ZhuyinRenderer';
@@ -10,12 +10,20 @@ const ExamReaderView = ({ currentItem, zoomLevel = 1.0, isKaraokeMode, highlight
 
   useEffect(() => {
     setImgError(false);
-  }, [currentItem]);
+  // 🌟 3. 核心邏輯：只要 currentItem 改變，就把 scrollTop 歸零
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = 0;
+    }
+  }, [currentItem]); // 👈 依賴陣列放入 currentItem
+  
+  // 🌟 2. 宣告一個用來抓取滾動容器的 Ref
+  const scrollRef = useRef(null);
 
   return (
     // ✅ RWD: 在小螢幕時縮小 padding (p-4 sm:p-8)
     <main 
-      className={`flex-1 flex flex-col p-4 sm:p-8 ${UI_THEME.CONTENT_AREA} overflow-y-auto`}
+      ref={scrollRef} 
+      className={`flex-1 flex flex-col p-4 sm:p-8 ${UI_THEME.CONTENT_AREA} overflow-y-auto scroll-smooth`}
       style={{ '--font-scale': zoomLevel }}
     >
       {/* 🌟 3. 新增：右上角的絕對定位編輯按鈕 */}

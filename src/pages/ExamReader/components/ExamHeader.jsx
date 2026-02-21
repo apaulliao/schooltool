@@ -1,5 +1,10 @@
 import React from 'react';
-import { List, ZoomIn, ZoomOut, FileText, Highlighter, Trash2, BookOpen, Share2, Loader2, Play, LogOut } from 'lucide-react'; // 🌟 新增 Play, LogOut 圖示
+import { 
+  PanelLeft, // 🌟 替換 List，更像側邊欄
+  ZoomIn, ZoomOut, Import, Highlighter, Trash2, 
+  BookA, // 🌟 替換 BookOpen，帶有字母A更像字典
+  Share2, Loader2, Play, LogOut 
+} from 'lucide-react'; 
 import { UI_THEME } from '../../../utils/constants';
 
 const ExamHeader = ({ 
@@ -16,136 +21,116 @@ const ExamHeader = ({
   isSharing,
   isFocusMode, 
   onExitFocusMode,
-  onEnterFocusMode // 🌟 記得從 ExamReader 傳入這個新 Props
+  onEnterFocusMode 
 }) => {
   return (
-    <header className={`min-h-[3.5rem] py-2 flex flex-wrap items-center justify-between px-2 sm:px-4 gap-y-2 border-b ${UI_THEME.BORDER_DEFAULT} ${UI_THEME.SURFACE_GLASS}`}>
+    <header className={`min-h-[4rem] py-2 flex flex-wrap items-center justify-between px-3 sm:px-5 gap-y-3 border-b ${UI_THEME.BORDER_DEFAULT} ${UI_THEME.SURFACE_GLASS}`}>
       
-{/* ================= 左側區塊 ================= */}
-      <div className="flex items-center gap-1 sm:gap-3">
+      {/* ================= 1. 左側：導覽與定位區 ================= */}
+      <div className="flex items-center gap-2 sm:gap-4">
         
-        {/* 🌈【永遠顯示】側邊欄開關 (讓學生可以自由開關題目列表) */}
+        {/* 側邊欄開關：換成 PanelLeft 更直觀 */}
         <button 
           onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-          className={`p-2 rounded-lg transition-colors ${isSidebarOpen ? 'bg-indigo-100 text-indigo-600 dark:bg-indigo-900/40 dark:text-indigo-400' : 'text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'}`}
+          className={`p-2 rounded-xl transition-all shadow-sm border ${isSidebarOpen ? 'bg-indigo-50 border-indigo-200 text-indigo-600 dark:bg-indigo-900/40 dark:border-indigo-800 dark:text-indigo-400' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-700'}`}
+          title="切換題目列表"
         >
-          <List size={20} />
+          <PanelLeft size={20} />
         </button>
 
         {isFocusMode ? (
-          // 🛑【考試模式】左側：只顯示乾淨的考卷標題
-          <div className="px-2 py-1 font-bold text-lg text-slate-700 dark:text-slate-200 truncate max-w-[200px] sm:max-w-[400px] ml-1 sm:ml-2">
+          <div className="px-2 py-1 font-bold text-lg text-slate-700 dark:text-slate-200 truncate max-w-[200px] sm:max-w-[400px]">
             {examList.find(e => e.id === activeExamId)?.title || '考試報讀中'}
           </div>
         ) : (
-          // 🟢【編輯模式】左側：考卷下拉選單 + 刪除 (老師管理專區)
-          <div className="flex items-center gap-1 sm:gap-2 ml-1 sm:ml-2">
+          // 🌟 考卷選擇與刪除：結合成一個精緻的 Combo 元件
+          <div className="flex items-center bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm overflow-hidden h-10">
             <select 
               value={activeExamId || ''} 
               onChange={(e) => onSelectExam(e.target.value)}
               disabled={examList.length === 0}
-              className="p-1.5 px-2 sm:px-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-200 outline-none focus:border-indigo-400 transition-colors cursor-pointer disabled:cursor-not-allowed max-w-[130px] sm:max-w-[200px] truncate"
+              className="px-3 h-full bg-transparent text-sm font-bold text-slate-700 dark:text-slate-200 outline-none cursor-pointer disabled:cursor-not-allowed max-w-[150px] sm:max-w-[250px] truncate border-r border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
             >
               {examList.length === 0 ? (
                 <option value="">請先匯入考卷...</option>
               ) : (
-                examList.map(exam => (
-                  <option key={exam.id} value={exam.id}>
-                    {exam.title}
-                  </option>
-                ))
+                examList.map(exam => <option key={exam.id} value={exam.id}>{exam.title}</option>)
               )}
             </select>
 
             <button 
               onClick={onDeleteExam}
               disabled={!activeExamId}
-              className="p-1.5 text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded-lg transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+              className="px-3 h-full text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/30 transition-colors disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center"
               title="刪除這份考卷"
             >
-              <Trash2 size={18} />
+              <Trash2 size={16} />
             </button>
           </div>
         )}
       </div>
       
-      {/* ================= 右側區塊 ================= */}
-      <div className="flex items-center gap-1 sm:gap-2">
+      {/* ================= 右側大區塊 ================= */}
+      <div className="flex items-center gap-3 sm:gap-4">
          
-         {/* 🌈【永遠顯示】無障礙輔助：字體大小 */}
-         <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded-lg p-1 mr-1 sm:mr-2">
-			  <button 
-				onClick={() => setZoomLevel(prev => Math.max(0.8, prev - 0.1))} 
-				className="p-1 sm:p-1.5 rounded text-slate-600 hover:bg-white dark:text-slate-300 dark:hover:bg-slate-700 shadow-sm"
-			  >
-				<ZoomOut size={16} className="sm:w-[18px] sm:h-[18px]" />
-			  </button>
-			  
-			  <span className="px-1 sm:px-3 text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-300 w-12 sm:w-16 text-center">
-				{Math.round(zoomLevel * 100)}%
-			  </span>
-			  
-			  <button 
-				onClick={() => setZoomLevel(prev => Math.min(2.5, prev + 0.1))} 
-				className="p-1 sm:p-1.5 rounded text-slate-600 hover:bg-white dark:text-slate-300 dark:hover:bg-slate-700 shadow-sm"
-			  >
-				<ZoomIn size={16} className="sm:w-[18px] sm:h-[18px]" />
-			  </button>
-			</div>
+         {/* ================= 2. 中右側：閱讀輔助區 (工具箱概念) ================= */}
+         <div className="hidden md:flex items-center bg-slate-100/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl p-1 shadow-inner">
+            
+            {/* 字體縮放 */}
+            <div className="flex items-center px-1">
+              <button onClick={() => setZoomLevel(prev => Math.max(0.8, prev - 0.1))} className="p-1.5 rounded-lg text-slate-500 hover:bg-white dark:text-slate-400 dark:hover:bg-slate-700 hover:shadow-sm transition-all"><ZoomOut size={16} /></button>
+              <span className="text-xs font-bold text-slate-600 dark:text-slate-300 w-10 text-center">{Math.round(zoomLevel * 100)}%</span>
+              <button onClick={() => setZoomLevel(prev => Math.min(2.5, prev + 0.1))} className="p-1.5 rounded-lg text-slate-500 hover:bg-white dark:text-slate-400 dark:hover:bg-slate-700 hover:shadow-sm transition-all"><ZoomIn size={16} /></button>
+            </div>
 
-         {/* 🌈【永遠顯示】無障礙輔助：指讀開關 */}
-         <button onClick={() => setIsKaraokeMode(!isKaraokeMode)} className={`p-1.5 sm:p-2 rounded-lg transition-colors flex items-center gap-1 sm:gap-2 font-medium ${isKaraokeMode ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400' : 'text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'}`}>
-           <Highlighter size={18} className="sm:w-[20px] sm:h-[20px]" />
-           <span className="text-sm hidden sm:inline">指讀</span>
-         </button>
+            <div className="w-px h-5 bg-slate-300 dark:bg-slate-600 mx-1"></div>
 
-         {/* ================= 模式分流按鈕群 ================= */}
+            {/* 指讀開關 */}
+            <button onClick={() => setIsKaraokeMode(!isKaraokeMode)} className={`p-1.5 px-2.5 rounded-lg transition-all flex items-center gap-1.5 text-sm font-bold ${isKaraokeMode ? 'bg-amber-100 text-amber-700 shadow-sm' : 'text-slate-500 hover:bg-white hover:shadow-sm'}`} title="指讀模式">
+              <Highlighter size={16} />
+              <span>指讀</span>
+            </button>
+
+            {/* 發音字典 (只有編輯模式顯示) */}
+            {!isFocusMode && (
+              <>
+                <div className="w-px h-5 bg-slate-300 dark:bg-slate-600 mx-1"></div>
+                <button onClick={onOpenDict} className="p-1.5 px-2.5 rounded-lg transition-all flex items-center gap-1.5 text-sm font-bold text-slate-500 hover:bg-white hover:text-indigo-600 hover:shadow-sm" title="自訂發音字典">
+                  <BookA size={16} />
+                  <span>字典</span>
+                </button>
+              </>
+            )}
+         </div>
+
+         {/* ================= 3. 最右側：考卷管理與模式切換 ================= */}
          {isFocusMode ? (
-           // 🛑【考試模式】專屬：退出按鈕
-           <button 
-             onClick={onExitFocusMode}
-             className="flex items-center gap-1 sm:gap-2 ml-1 sm:ml-2 px-2 sm:px-4 py-1.5 sm:py-2 bg-red-50 text-red-500 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 rounded-lg transition-colors font-bold"
-             title="退出考試模式 (恢復編輯功能)"
-           >
+           <button onClick={onExitFocusMode} className="flex items-center gap-2 px-4 py-2 bg-rose-50 border border-rose-200 text-rose-600 hover:bg-rose-100 dark:bg-rose-900/20 dark:border-rose-800 dark:text-rose-400 rounded-xl transition-all font-bold shadow-sm">
              <LogOut size={18} />
              <span className="hidden sm:inline text-sm">結束考試</span>
            </button>
          ) : (
-           // 🟢【編輯模式】專屬：字典、派送、匯入、進入考試
-           <>
-             {/* 發音字典 */}
-             <button onClick={onOpenDict} className="p-1.5 sm:p-2 rounded-lg transition-colors text-indigo-500 hover:bg-indigo-100 dark:hover:bg-indigo-900/30" title="自訂發音字典">
-               <BookOpen size={18} className="sm:w-[20px] sm:h-[20px]" />
-             </button>
+           <div className="flex items-center gap-2">
              
-             {/* 派送按鈕 */}
-             <button 
-               onClick={onShareExam}
-               disabled={!activeExamId || isSharing}
-               className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition-colors shadow-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-               title="將考卷派送給學生"
-             >
-               {isSharing ? <Loader2 size={18} className="animate-spin" /> : <Share2 size={18} />}
-               <span className="hidden xl:inline text-sm">{isSharing ? '產生中...' : '派送'}</span>
+             {/* 🌟 匯入：淺藍底色，象徵「資料讀取/匯入」 */}
+             <button onClick={onOpenImport} className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-400 rounded-xl transition-all font-bold shadow-sm">
+               <Import size={16} />
+               <span className="hidden lg:inline text-sm">匯入</span>
              </button>
 
-             {/* 匯入按鈕 */}
-             <button onClick={onOpenImport} className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 bg-slate-700 hover:bg-slate-800 dark:bg-slate-600 dark:hover:bg-slate-500 text-white rounded-lg transition-colors shadow-sm font-medium">
-               <FileText size={18} />
-               <span className="hidden xl:inline text-sm">匯入</span>
+             {/* 🌟 派送：淺綠底色，象徵「資料發送/成功」 (維持不變) */}
+             <button onClick={onShareExam} disabled={!activeExamId || isSharing} className="flex items-center gap-2 px-3 py-2 bg-emerald-50 border border-emerald-200 text-emerald-600 hover:bg-emerald-100 dark:bg-emerald-900/20 dark:border-emerald-800 dark:text-emerald-400 rounded-xl transition-all font-bold shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
+               {isSharing ? <Loader2 size={16} className="animate-spin" /> : <Share2 size={16} />}
+               <span className="hidden lg:inline text-sm">{isSharing ? '產生中...' : '派送'}</span>
              </button>
 
-             {/* 🌟 新增：手動進入考試模式按鈕 */}
-             <button 
-               onClick={onEnterFocusMode}
-               disabled={!activeExamId}
-               className="flex items-center gap-1 sm:gap-2 ml-1 px-2 sm:px-4 py-1.5 sm:py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors shadow-md font-bold disabled:opacity-50 disabled:cursor-not-allowed"
-               title="全螢幕進入學生專注考試模式"
-             >
-               <Play size={18} />
+             {/* 🌟 進入考試：實心主按鈕 (維持不變) */}
+             <button onClick={onEnterFocusMode} disabled={!activeExamId} className="flex items-center gap-2 ml-1 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl transition-all font-bold shadow-md shadow-indigo-200 dark:shadow-none hover:-translate-y-0.5 disabled:opacity-50 disabled:hover:translate-y-0 disabled:cursor-not-allowed">
+               <Play size={16} className="fill-current" />
                <span className="hidden sm:inline text-sm">進入考試</span>
              </button>
-           </>
+
+           </div>
          )}
 
       </div>
