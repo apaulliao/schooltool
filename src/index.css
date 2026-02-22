@@ -27,27 +27,31 @@
 }
 
 /* --- 2. 基礎 HTML 樣式 --- */
+html, body {
+  height: 100%;
+}
+
 body {
   background-color: var(--bg-body);
   color: var(--text-main);
   margin: 0;
-  
-  /* 🌟 修正 Issue 1：防止整個頁面被亂拉，並確保高度精準 */
-  position: fixed;
-  width: 100vw;
-  height: 100dvh; /* 捨棄 vh，改用 dvh */
-  overflow: hidden; /* 鎖死最外層，捲動交給內層元件 */
-  overscroll-behavior-y: none; /* 禁用 iOS 下拉更新 */
-  
-  transition: background-color 0.4s cubic-bezier(0.4, 0, 0.2, 1), 
+
+  /* ❌ 不要 fixed */
+  overflow: hidden;           /* 仍然鎖最外層捲動 */
+  overscroll-behavior-y: none;
+
+  transition: background-color 0.4s cubic-bezier(0.4, 0, 0.2, 1),
               color 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* 🌟 新增：確保 React 的掛載點也乖乖聽話 */
 #root {
   width: 100vw;
-  height: 100dvh;
+  height: 100%;
+  min-height: 100dvh;         /* ✅ 真正的一勞永逸：root 自己用 dvh */
   overflow: hidden;
+
+  display: flex;
+  flex-direction: column;
 }
 
 /* 強制瀏覽器渲染深色模式相關樣式 */
