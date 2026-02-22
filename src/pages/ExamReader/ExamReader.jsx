@@ -177,7 +177,7 @@ const ExamReader = ({ user, login, shareId, setShareId }) => {
   };
   
   return (
-    <div className={`w-full h-full flex flex-col ${UI_THEME.BACKGROUND} transition-colors duration-300 relative`}>
+    <div className={`w-full h-[100dvh] flex flex-col ${UI_THEME.BACKGROUND} transition-colors duration-300 relative`}>
 	  {/* 🌟 3. 新增：學生端下載中的全螢幕遮罩 */}
       {isDownloading && (
         <div className="absolute inset-0 z-[999] bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm flex flex-col items-center justify-center">
