@@ -107,10 +107,10 @@ html.dark {
   font-family: 'ZhuyinAnnotated';
   /* 優先尋找本機安裝的名稱 */
   src: local('ㄅ源泉注音圓體'),
-       /*local('BpmfGenSenRounded'),*/
-       local('BpmfGenSenRounded-L'),
+       /*local('BpmfGenSenRounded-L'),local('BpmfGenSenRounded'),local('BpmfGenSekiGothic-L'),local('ㄅ源石注音黑體'),local('ㄅ源泉注音圓體'),*/
+       local('BpmfGenSenRounded-R'),
        /* 網路備用檔案 */
-       url('/fonts/BpmfGenSenRounded-L.ttf') format('truetype');
+       url('/fonts/BpmfGenSenRounded-R.ttf') format('truetype');
   font-display: swap;
 }
 
@@ -118,8 +118,8 @@ html.dark {
   font-family: 'ZhuyinAnnotated', "Microsoft JhengHei", sans-serif;
   line-height: 1.5;
   /* 👇 新增這兩行 */
-  /*font-weight: 500 !important; /* 強制使用標準粗細，不准瀏覽器自動加粗 */
-  /*-webkit-font-smoothing: antialiased; /* 讓字體邊緣更平滑銳利 */
+  font-weight: 500 !important; /* 強制使用標準粗細，不准瀏覽器自動加粗 */
+  -webkit-font-smoothing: antialiased; /* 讓字體邊緣更平滑銳利 */
 }
 
 @media print {

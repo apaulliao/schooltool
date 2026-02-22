@@ -1,23 +1,49 @@
-import React, { useState, useRef } from 'react';
-import { X, Check, FileText, Upload } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { X, Check, FileText, Upload, BookOpen } from 'lucide-react';
 import { UI_THEME } from '../../../utils/constants';
 import { parseExamText, parseExamHtml } from '../utils/examParser';
 import mammoth from 'mammoth';
 
+// 🌟 新增：支援的科目清單與對應的內部代碼
+const SUBJECT_OPTIONS = [
+  { id: 'general', label: '通用 (國語/社會/綜合)' },
+  { id: 'math', label: '數學科' },
+  { id: 'english', label: '英文科' },
+  { id: 'science', label: '自然科' }
+];
+
+// 🌟 新增：自動判讀科目的輔助函式
+const detectSubject = (text, filename = '') => {
+  const content = (text + ' ' + filename).substring(0, 500); // 只掃描前 500 字，提高效能
+  if (/數學|算數|加減乘除|幾何/.test(content)) return 'math';
+  if (/自然|理化|生物|科學/.test(content)) return 'science';
+  if (/英文|英語|English|[a-zA-Z]{10,}/.test(content)) return 'english';
+  return 'general'; // 預設為通用
+};
+
 const ImportModal = ({ isOpen, onClose, onImportSuccess }) => {
   const [importText, setImportText] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [selectedSubject, setSelectedSubject] = useState('general'); // 🌟 新增科目狀態
   const fileInputRef = useRef(null);
 
+    // 🌟 監聽純文字貼上，嘗試自動判讀 (可加上防抖 debounce 避免頻繁觸發)
+  useEffect(() => {
+    if (importText.length > 10) {
+      setSelectedSubject(detectSubject(importText));
+    }
+  }, [importText]);
+  
   if (!isOpen) return null;
 
-  // 處理文字送出
   const handleSubmit = () => {
     if (!importText.trim()) return;
     const parsedData = parseExamText(importText);
     if (parsedData.length > 0) {
-      onImportSuccess(parsedData);
+      // 🌟 將選定的科目代碼一併傳出
+      onImportSuccess(parsedData, '手動匯入考卷', selectedSubject);
       setImportText('');
+      setSelectedSubject('general'); // 重置
       onClose();
     }
   };
@@ -29,30 +55,32 @@ const ImportModal = ({ isOpen, onClose, onImportSuccess }) => {
     }
   };
 
-  // 處理檔案上傳與解析
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
     setIsProcessing(true);
+    // 透過檔名進行初步判讀
+    setSelectedSubject(detectSubject('', file.name)); 
 
     try {
       if (file.name.endsWith('.docx')) {
-        // 【升級】使用 convertToHtml 支援圖片
         const reader = new FileReader();
         reader.onload = async (event) => {
           try {
             const arrayBuffer = event.target.result;
             const result = await mammoth.convertToHtml({ arrayBuffer });
             
-            // 直接將 HTML 轉為考卷陣列
             const parsedData = parseExamHtml(result.value);
             if (parsedData.length > 0) {
-              // ✅ 修正：將去除了 .docx 的檔案名稱傳出去，作為下拉選單的標題
               const examTitle = file.name.replace('.docx', '');
-              onImportSuccess(parsedData, examTitle); 
+              // 若檔名沒有明顯特徵，從轉出的 HTML 內容再次判讀
+              const finalSubject = detectSubject(result.value, examTitle);
+              
+              // 🌟 將選定的科目代碼一併傳出
+              onImportSuccess(parsedData, examTitle, finalSubject); 
               setImportText('');
-              onClose(); // 關閉彈窗
+              onClose(); 
             }
           } catch (error) {
             console.error('Word 檔案解析失敗:', error);
@@ -137,6 +165,20 @@ const ImportModal = ({ isOpen, onClose, onImportSuccess }) => {
 
         {/* 底部按鈕 */}
         <div className={`px-6 py-4 border-t ${UI_THEME.BORDER_DEFAULT} flex justify-end gap-3 bg-slate-50 dark:bg-slate-800/50`}>
+		{/* 🌟 讓老師選擇或確認科目的下拉選單 */}
+          <div className="flex items-center gap-2">
+            <BookOpen size={18} className="text-slate-500" />
+            <span className="text-sm font-bold text-slate-600 dark:text-slate-300">報讀科目：</span>
+            <select 
+              value={selectedSubject}
+              onChange={(e) => setSelectedSubject(e.target.value)}
+              className="bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              {SUBJECT_OPTIONS.map(opt => (
+                <option key={opt.id} value={opt.id}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
           <button onClick={onClose} className={`px-6 py-2 rounded-xl font-bold ${UI_THEME.BTN_SECONDARY}`}>
             取消
           </button>

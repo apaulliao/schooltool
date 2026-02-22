@@ -19,9 +19,9 @@ import ExamPackageModal from './components/ExamPackageModal';
 import EditItemModal from './components/EditItemModal';
 
 const ExamReader = ({ user, login, shareId, setShareId }) => {
-  const { speak, cancel, pauseTTS, resumeTTS, ttsState, voices, highlightRange } = useTTS();
+  const { speak, cancel, pauseTTS, resumeTTS, ttsState, voices, activeChunkId } = useTTS();
   const {
-    examList, activeExamId, examItems, currentIndex, setCurrentIndex, isClearModalOpen,    setIsClearModalOpen, isDeletingExam, deleteExamError, setDeleteExamError, loadExamList,    handleSelectExam, handleDeleteClick, executeDeleteExam, handleImportSuccess, handleMoveMedia, handleUpdateItemText} = useExamManager({ onStopAudio: cancel });
+    examList, activeExamId, examItems, currentIndex, setCurrentIndex, isClearModalOpen,    setIsClearModalOpen, isDeletingExam, deleteExamError, setDeleteExamError, loadExamList,    handleSelectExam, handleDeleteClick, executeDeleteExam, handleImportSuccess, handleMoveMedia, handleUpdateItemText, handleUpdateExamSubject} = useExamManager({ onStopAudio: cancel });
   
   // ✅ 2. 修正字體大小的預設值 (配合 ExamHeader 的運算邏輯)
   const [speechRate, setSpeechRate] = useState(0.85);
@@ -126,9 +126,17 @@ const ExamReader = ({ user, login, shareId, setShareId }) => {
     if (ttsState === 'paused') {
       resumeTTS();
     } else {
-      // ✅ 優先讀取包含表格的 fullSpokenText，若無則向下相容讀取舊版的 text
-      const textToSpeak = examItems[currentIndex].spokenText || examItems[currentIndex].text;
-      speak(textToSpeak, 'zh-TW', speechRate);
+      const currentItem = examItems[currentIndex];
+      const currentExam = examList.find(e => e.id === activeExamId);
+      const subject = currentExam?.subject || 'general';
+      
+      // 🌟 新架構：改為傳遞 chunks 陣列。
+      // 向下相容：如果舊考卷沒有 chunks，才退回傳遞 text 陣列包裝
+      const payloadChunks = currentItem.chunks && currentItem.chunks.length > 0 
+        ? currentItem.chunks 
+        : [{ id: currentItem.id, text: currentItem.text, spokenText: currentItem.spokenText || currentItem.text }];
+
+      speak(payloadChunks, subject, speechRate);
     }
   };
 
@@ -153,10 +161,19 @@ const ExamReader = ({ user, login, shareId, setShareId }) => {
     handleStop();
   }, [currentIndex]);
 
-  const handleWordClick = (clickedIndex) => {	  
+  // 🌟 將名稱改為 handleChunkClick 更符合邏輯
+  const handleChunkClick = (clickedChunkId) => {	  
     if (!activeExamId || examItems.length === 0) return;
-    const textToSpeak = examItems[currentIndex].spokenText || examItems[currentIndex].text;
-    speak(textToSpeak, 'zh-TW', speechRate, clickedIndex);
+    const currentItem = examItems[currentIndex];
+    const currentExam = examList.find(e => e.id === activeExamId);
+    const subject = currentExam?.subject || 'general';
+    
+    const payloadChunks = currentItem.chunks && currentItem.chunks.length > 0 
+      ? currentItem.chunks 
+      : [{ id: currentItem.id, text: currentItem.text, spokenText: currentItem.spokenText || currentItem.text }];
+
+    // 🌟 將 clickedChunkId 作為起點傳入
+    speak(payloadChunks, subject, speechRate, clickedChunkId);
   };
   
   return (
@@ -200,8 +217,8 @@ const ExamReader = ({ user, login, shareId, setShareId }) => {
       <ImportModal 
         isOpen={isImportModalOpen}
         onClose={() => setIsImportModalOpen(false)}
-        onImportSuccess={(items, title) => {
-          handleImportSuccess(items, title);
+        onImportSuccess={(items, title, subject) => {
+          handleImportSuccess(items, title, subject);
           setIsImportModalOpen(false); // 🌟 記得加這行關閉視窗
         }} 
       />
@@ -267,6 +284,7 @@ const ExamReader = ({ user, login, shareId, setShareId }) => {
 		isFocusMode={isFocusMode}
 		onExitFocusMode={handleExitFocusMode}
 		onEnterFocusMode={handleEnterFocusMode}
+		onUpdateSubject={handleUpdateExamSubject}
       />
 
       {/* 中央主畫面區塊 */}
@@ -280,13 +298,16 @@ const ExamReader = ({ user, login, shareId, setShareId }) => {
 
         <ExamReaderView 
           currentItem={examItems[currentIndex]}
+          currentIndex={currentIndex}
           zoomLevel={zoomLevel}
           isKaraokeMode={isKaraokeMode}
-          highlightRange={highlightRange}
-          onWordClick={handleWordClick}
-		  onMoveMedia={handleMoveMedia}
-		  onOpenEdit={() => setIsEditModalOpen(true)}
-		  isFocusMode={isFocusMode}
+          // 🌟 更新以下兩個 Props
+          activeChunkId={activeChunkId}
+          onChunkClick={handleChunkClick}
+          // =====================
+          onMoveMedia={handleMoveMedia}
+          onOpenEdit={() => setIsEditModalOpen(true)}
+          isFocusMode={isFocusMode}
         />
       </div>
 

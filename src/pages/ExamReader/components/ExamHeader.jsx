@@ -3,9 +3,16 @@ import {
   PanelLeft, // 🌟 替換 List，更像側邊欄
   ZoomIn, ZoomOut, Import, Highlighter, Trash2, 
   BookA, // 🌟 替換 BookOpen，帶有字母A更像字典
-  Share2, Loader2, Play, LogOut 
+  Share2, Loader2, Play, LogOut
 } from 'lucide-react'; 
 import { UI_THEME } from '../../../utils/constants';
+
+const SUBJECT_OPTIONS = [
+  { id: 'general', label: '通用 (國語/社會)' },
+  { id: 'math', label: '數學科' },
+  { id: 'english', label: '英文科' },
+  { id: 'science', label: '自然科' }
+];
 
 const ExamHeader = ({ 
   isSidebarOpen, setIsSidebarOpen, 
@@ -21,8 +28,13 @@ const ExamHeader = ({
   isSharing,
   isFocusMode, 
   onExitFocusMode,
-  onEnterFocusMode 
+  onEnterFocusMode,
+  onUpdateSubject
 }) => {
+	// 取得目前選定考卷的科目，若無則預設為 general
+  const currentExam = examList.find(e => e.id === activeExamId);
+  const currentSubject = currentExam?.subject || 'general';
+	
   return (
     <header className={`min-h-[4rem] py-2 flex flex-wrap items-center justify-between px-3 sm:px-5 gap-y-3 border-b ${UI_THEME.BORDER_DEFAULT} ${UI_THEME.SURFACE_GLASS}`}>
       
@@ -49,7 +61,7 @@ const ExamHeader = ({
               value={activeExamId || ''} 
               onChange={(e) => onSelectExam(e.target.value)}
               disabled={examList.length === 0}
-              className="px-3 h-full bg-transparent text-sm font-bold text-slate-700 dark:text-slate-200 outline-none cursor-pointer disabled:cursor-not-allowed max-w-[150px] sm:max-w-[250px] truncate border-r border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
+              className="px-3 h-full bg-transparent text-sm font-bold text-slate-700 dark:text-slate-200 outline-none cursor-pointer disabled:cursor-not-allowed max-w-[150px] sm:max-w-[250px] truncate border-r border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 dark:bg-slate-800 transition-colors"
             >
               {examList.length === 0 ? (
                 <option value="">請先匯入考卷...</option>
@@ -57,6 +69,21 @@ const ExamHeader = ({
                 examList.map(exam => <option key={exam.id} value={exam.id}>{exam.title}</option>)
               )}
             </select>
+			
+			{activeExamId && (
+      
+        <select 
+          value={currentSubject}
+          onChange={(e) => onUpdateSubject(activeExamId, e.target.value)}
+          className="px-3 h-full bg-transparent text-sm font-bold text-slate-700 dark:text-slate-200 outline-none cursor-pointer disabled:cursor-not-allowed max-w-[150px] sm:max-w-[250px] truncate border-r border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 dark:bg-slate-800 transition-colors"
+          title="切換報讀語音字典科目"
+        >
+          {SUBJECT_OPTIONS.map(opt => (
+            <option key={opt.id} value={opt.id}>{opt.label}</option>
+          ))}
+        </select>
+      
+    )}
 
             <button 
               onClick={onDeleteExam}

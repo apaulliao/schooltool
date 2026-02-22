@@ -1,121 +1,77 @@
 // src/utils/ttsProcessor.js
+import { getExamReaderDict, getExamRegexPatterns } from '../constants/ttsDictionary';
 
-export const generateSpokenTextData = (text, startIndex = 0) => {
-  if (!text) return { fullSpokenText: '', slicedSpokenText: '', indexMap: [], spokenStartIndex: 0, safeStartIndex: 0 };
+export const applyTTSDictionary = (text, subject = 'general') => {
+  if (!text) return '';
 
-  const DEFAULT_DICT = {
-    '○': '圈', '△': '角', '×': '成以', '÷': '廚以', 
-    '＋': '加', '+': '加', '－': '減', '-': '減',
-    '＝': '等於', '=': '等於', '□': '框框',  
-    '①': '一', '②': '二', '③': '三', '④': '四', '⑤': '五',
-    '⑥': '六', '⑦': '七', '⑧': '八', '⑨': '九', '⑩': '十'
-  };
+  let customDict = {};
+  try { customDict = JSON.parse(localStorage.getItem('tts_custom_dict')) || {}; } catch (e) {}
 
-  let userDict = {};
-  try {
-    userDict = JSON.parse(localStorage.getItem('tts_custom_dict')) || {};
-  } catch (e) {
-    console.error("讀取自訂字典失敗", e);
-  }
-  
-  const FINAL_DICT = { ...DEFAULT_DICT, ...userDict };
-  const sortedDictKeys = Object.keys(FINAL_DICT).sort((a, b) => b.length - a.length);
+  const baseDict = getExamReaderDict(subject);
+  const activeDict = { ...baseDict, ...customDict };
+  const customPatterns = getExamRegexPatterns(subject);
+  const sortedKeys = Object.keys(activeDict).sort((a, b) => b.length - a.length);
 
-  const blankPattern = /[(（][\s_]*[)）]/g;
-  const blankRanges = [];
-  let match;
-  while ((match = blankPattern.exec(text)) !== null) {
-    blankRanges.push({ start: match.index, end: match.index + match[0].length });
-  }
+  let preprocessedText = text;
 
-  let fullSpokenText = ''; 
-  const indexMap = []; 
+  // 1. 正則表達式替換 (Regex Patterns)
+  customPatterns.forEach(({ pattern, replacement }) => {
+    pattern.lastIndex = 0; 
+    preprocessedText = preprocessedText.replace(pattern, typeof replacement === 'function' ? replacement : () => replacement);
+  });
+
+  // 2. 靜態字典替換與標籤轉換
+  let fullSpokenText = '';
   let i = 0;
+  
+  while (i < preprocessedText.length) {
+    const optMatch = preprocessedText.slice(i).match(/^[(（]\s*([A-FＡ-Ｆa-fａ-ｆ]|[0-9０-９]{1,2}|甲|乙|丙|丁)\s*[)）]/);
+    const circleMatch = preprocessedText.slice(i).match(/^([①-⑳])/);
 
-  const secMatch = text.match(/^([一二三四五六七八九十壹貳參肆伍陸柒捌玖拾]+)[、.\s]+/);
-  const qMatch = text.match(/^(?:[(（\[【]\s*[)）\]】]\s*)?([0-9０-９]+)[、. ]*(?:[(（][\s_]*[)）])?\s*/);
-
-  if (secMatch) {
-    const replaceStr = `第${secMatch[1]}大題，`; 
-    fullSpokenText += replaceStr;
-    for (let j = 0; j < replaceStr.length; j++) indexMap.push(0);
-    i = secMatch[0].length; 
-  } else if (qMatch) {
-    const replaceStr = `第${qMatch[1]}題，`; 
-    fullSpokenText += replaceStr;
-    for (let j = 0; j < replaceStr.length; j++) indexMap.push(0);
-    i = qMatch[0].length; 
-  }
-
-  while (i < text.length) {
-    const currentBlank = blankRanges.find(r => r.start === i);
-    if (currentBlank) {
-      const replaceStr = '括弧';
-      fullSpokenText += replaceStr;
-      for (let j = 0; j < replaceStr.length; j++) indexMap.push(i);
-      i = currentBlank.end;
+    if (optMatch) {
+      let optVal = optMatch[1].toUpperCase(); 
+      if (/^[0-9]+$/.test(optVal)) {
+        const numMap = {'1':'一','2':'二','3':'三','4':'四','5':'五','6':'六','7':'七','8':'八','9':'九','10':'十'};
+        optVal = numMap[optVal] || optVal;
+      } else if (/^[A-Z]$/.test(optVal)) {
+        optVal = String.fromCharCode(optVal.charCodeAt(0) + 0xFEE0); 
+      }
+      fullSpokenText += `${optVal}、`; 
+      i += optMatch[0].length;
       continue;
-    }
-
-    let matchedOptionStr = null;
-    let optionSpokenText = null;
-
-    const stdMatch = text.slice(i).match(/^([(（]?)([A-FＡ-Ｆa-fａ-ｆ]|[0-9０-９]{1,2})([.、)）])(?!\d)/);
-    const circleMatch = text.slice(i).match(/^([①-⑳])([.、)）]?)/);
-
-    if (stdMatch) {
-      matchedOptionStr = stdMatch[0];
-      optionSpokenText = stdMatch[2]; 
     } else if (circleMatch) {
-      matchedOptionStr = circleMatch[0];
-      optionSpokenText = circleMatch[1]; 
-      
-      if (FINAL_DICT[optionSpokenText]) {
-        optionSpokenText = FINAL_DICT[optionSpokenText];
-      }
-    }
-
-    if (matchedOptionStr) {
-      const replaceStr = `${optionSpokenText}，`;
-      fullSpokenText += replaceStr;
-      for (let j = 0; j < replaceStr.length; j++) {
-        indexMap.push(i);
-      }
-      i += matchedOptionStr.length; 
+      const optVal = circleMatch[1];
+      const readVal = activeDict[optVal] || optVal;
+      fullSpokenText += `${readVal}、`; 
+      i += circleMatch[0].length;
       continue;
     }
 
-    let matchedKey = null;
-    for (const key of sortedDictKeys) {
-      if (text.startsWith(key, i)) {
-        matchedKey = key;
-        break;
+    let matchedKey = sortedKeys.find(key => preprocessedText.startsWith(key, i));
+
+    // 防止把英文單字內的字元錯誤替換 (例如 "hm" 裡的 "m")
+    if (matchedKey && /^[a-zA-Z.]+$/.test(matchedKey)) {
+      const prevChar = i > 0 ? preprocessedText[i - 1] : '';
+      const nextChar = preprocessedText[i + matchedKey.length] || '';
+      const isEnglishChar = /[a-zA-Z]/;
+      if (isEnglishChar.test(prevChar) || isEnglishChar.test(nextChar)) {
+        matchedKey = undefined; 
       }
     }
 
     if (matchedKey) {
-      const replaceStr = FINAL_DICT[matchedKey];
-      fullSpokenText += replaceStr;
-      for (let j = 0; j < replaceStr.length; j++) indexMap.push(i);
+      fullSpokenText += activeDict[matchedKey];
       i += matchedKey.length;
     } else {
-      fullSpokenText += text[i];
-      indexMap.push(i);
+      fullSpokenText += preprocessedText[i];
       i++;
     }
   }
 
-  const safeStartIndex = Math.max(0, Math.min(text.length - 1, startIndex));
-  let spokenStartIndex = indexMap.indexOf(safeStartIndex);
-  if (spokenStartIndex === -1) spokenStartIndex = 0; 
+  // 確保結尾有句號，讓語音引擎可以自然換氣與煞車
+  if (!/[。？！.?!]$/.test(fullSpokenText)) {
+    fullSpokenText += '。';
+  }
 
-  const slicedSpokenText = fullSpokenText.substring(spokenStartIndex);
-
-  return {
-    fullSpokenText,
-    slicedSpokenText,
-    indexMap,
-    spokenStartIndex,
-    safeStartIndex
-  };
+  return fullSpokenText;
 };

@@ -1,4 +1,4 @@
-import React, { useState, useMemo , useCallback} from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { Megaphone, Users, BookOpen, Eye, Bell, MessageSquare, 
   Star, Heart, AlertTriangle, Info, Zap } from 'lucide-react';
 
@@ -204,6 +204,20 @@ const DashboardContent = ({ theme, cycleTheme}) => {
 	const closeTools = useCallback(() => setShowTools(false), []);
 	const closeBroadcastInput = useCallback(() => setShowBroadcastInput(false), []);
 	const closeMessageInput = useCallback(() => setIsEditingMessage(false), []);
+	const prevStatusModeRef = useRef(statusMode);
+    
+    useEffect(() => {
+      // 偵測「從非上課 (例如 break 倒數結束) 變成上課 (class)」的打鐘瞬間
+      if (prevStatusModeRef.current !== 'class' && statusMode === 'class') {
+        // 如果畫面上剛好有跑馬燈，就自動銷毀它並停止語音
+        if (specialStatus?.mode === 'marquee') {
+          setSpecialStatus(null);
+          tts.cancel();
+        }
+      }
+      // 更新前一次的狀態紀錄
+      prevStatusModeRef.current = statusMode;
+    }, [statusMode, specialStatus, tts]);
 
   // --- Render ---
   return (

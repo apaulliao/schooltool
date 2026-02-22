@@ -63,6 +63,7 @@ export const getAllExamMetas = async () => {
       const metas = allExams.map(exam => ({
         id: exam.id,
         title: exam.title,
+		subject: exam.subject || 'general', // 👈 確保科目資訊被傳遞至前端清單
         updatedAt: exam.updatedAt
       }));
       resolve(metas);
