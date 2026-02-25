@@ -9,7 +9,8 @@ const OSContext = createContext();
 // 2. 建立 Provider (大腦本體)
 export const OSProvider = ({ children }) => {
   // --- 核心狀態：目前開啟的 App ---
-  const [currentAppId, setCurrentAppId] = useState('dashboard');
+  // 🌟 修改：改用 usePersistentState 來記憶上次使用的 App
+  const [currentAppId, setCurrentAppId] = usePersistentState('classroom_os_current_app', 'dashboard');
   
   // --- 核心狀態：Launcher 位置 ---
   const [launcherPosition, setLauncherPosition] = usePersistentState('os_launcher_pos', 'left');
@@ -51,8 +52,6 @@ export const OSProvider = ({ children }) => {
   // --- 核心邏輯：注音校正引擎 (混合 System + User) ---
   
   // 優化效能：當 userDict 改變時，才重新計算合併後的 Key 排序
-  // 這裡非常重要：必須將 User 與 System 合併後，統一依「長度」排序，
-  // 才能確保「長詞優先匹配」(例如：先換「銀行」，才換「行」)
   const sortedReplacementKeys = useMemo(() => {
     // 1. 合併字典 (User 覆蓋 System)
     const combinedMap = { ...POLYPHONE_MAP, ...userDict };
@@ -64,11 +63,9 @@ export const OSProvider = ({ children }) => {
     if (!text || typeof text !== 'string') return text;
     
     let processed = text;
-    // 為了效能，我們需要在此處讀取合併後的字典值
     const combinedMap = { ...POLYPHONE_MAP, ...userDict };
 
     sortedReplacementKeys.forEach(word => {
-      // 只有當字串內還包含該詞彙時才替換 (避免重複處理已加上 IVS 的字)
       if (processed.includes(word)) {
         const replacement = combinedMap[word];
         processed = processed.split(word).join(replacement);
@@ -103,7 +100,6 @@ export const OSProvider = ({ children }) => {
     isGlobalZhuyin,
     setIsGlobalZhuyin,
     fontInstalled,
-    // 新增的注音相關功能
     userDict,
     fixZhuyinText,
     addCustomReading,
@@ -113,7 +109,6 @@ export const OSProvider = ({ children }) => {
   return <OSContext.Provider value={value}>{children}</OSContext.Provider>;
 };
 
-// 4. 自訂 Hook
 export const useOS = () => {
   const context = useContext(OSContext);
   if (!context) {
