@@ -26,7 +26,10 @@ const SYSTEM_KEYS = [
 export const generateSystemPayload = async () => {
     const backupData = {
         localStorage: {},
-        indexedDB: { exams: [] } // 準備存放考卷
+        indexedDB: { 
+			exams: [],  //考卷資料
+			classes: [] //學生資料
+			} 
     };
     
     // 1. 收集 LocalStorage 資料
@@ -44,13 +47,10 @@ export const generateSystemPayload = async () => {
 
     // 2. 收集 IndexedDB 考卷資料 (報讀助理的考卷)
     try {
-        const metas = await getAllExamMetas();
-        for (const meta of metas) {
-            const exam = await getExamById(meta.id);
-            if (exam) backupData.indexedDB.exams.push(exam);
-        }
+        backupData.indexedDB.exams = await getAllItems(STORES.EXAMS);
+        backupData.indexedDB.classes = await getAllItems(STORES.CLASSES); // 👈 抓班級
     } catch (e) {
-        console.warn('無法讀取 IndexedDB 考卷', e);
+        console.warn('IDB Backup Failed', e);
     }
 
     return {
@@ -83,12 +83,14 @@ export const restoreFromPayload = async (payload) => {
     }
 
     // 2. 還原 IndexedDB 考卷資料
-    if (idbData && Array.isArray(idbData.exams)) {
-        for (const exam of idbData.exams) {
-            await saveExam(exam); // 逐一寫入資料庫
+   if (idbData) {
+        if (idbData.exams) {
+            for (const exam of idbData.exams) await saveItem(STORES.EXAMS, exam);
+        }
+        if (idbData.classes) { // 👈 還原班級
+            for (const cls of idbData.classes) await saveItem(STORES.CLASSES, cls);
         }
     }
-    
     return true;
 };
 

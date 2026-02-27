@@ -123,13 +123,25 @@ export const useScoring = (currentClass, updateClass) => {
         // 個人加分 (保持原樣，顯示在卡片上)
         if (mode !== 'group' && mode !== 'class') {
             (validStudents || []).forEach((s, index) => {
+                // 🌟 [修復 2-B] 安全的 DOM 讀取
                 const el = document.getElementById(`student-card-${s.id}`);
-                let rect = { left: window.innerWidth / 2, top: window.innerHeight / 2, width: 0 };
-                if (el) rect = el.getBoundingClientRect();
+                
+                // 預設位置：螢幕正中央 (如果找不到元素，就在中間跳出，至少讓老師知道有加分)
+                let rect = { 
+                    left: window.innerWidth / 2 - 30, // 稍微修正置中偏移
+                    top: window.innerHeight / 2, 
+                    width: 60 
+                };
+                
+                if (el) {
+                    rect = el.getBoundingClientRect();
+                } else {
+                    console.warn(`找不到學生卡片 DOM: student-card-${s.id}，將顯示於中央。請檢查 StudentCard 是否有設定 id 屬性。`);
+                }
 
                 newFeedbacks.push({
                     id: `fb_${timestamp}_${s.id}_${Math.random()}`,
-                    x: rect.left + rect.width / 2 - 20,
+                    x: rect.left + rect.width / 2 - 20, // 確保在卡片中央
                     y: rect.top,
                     value: scoreValue,
                     delay: index * 10,

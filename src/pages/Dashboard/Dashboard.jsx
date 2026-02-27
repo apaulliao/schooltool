@@ -107,22 +107,54 @@ const Dashboard = ({ theme, cycleTheme}) => {
     return statusMode === 'off-hours' || currentSlot?.id === 'after';
   }, [statusMode, currentSlot]);
 
-  // 決定目前顯示哪個 View
-  // 優先級: 手動省電 > 放學自動省電 > 一般狀態
+  // 1. 修正 activeView 判斷邏輯：確保 'eco' 狀態有被歸類
   const activeView = useMemo(() => {
+      // (A) 手動省電：最高優先級
       if (isManualEco) return 'eco-manual';
-      if (isOffHours) return 'eco-auto';
-      return statusMode; // 'class', 'break', 'pre-bell', 'special'
+      
+      // (B) 放學待機：次高優先級 (透過 OffHoursView 合併進來的邏輯)
+      if (isOffHours) return 'eco-auto'; 
+
+      // (C) 上課自動省電 (修正點：接住 statusMode === 'eco')
+      // 當 useClassroomTimer 數到時間到，會把 statusMode 設為 'eco'
+      // 我們將其視為 'eco-auto' 來渲染
+      if (statusMode === 'eco') return 'eco-auto';
+
+      // (D) 一般狀態 (class, break, pre-bell, special)
+      return statusMode; 
   }, [isManualEco, isOffHours, statusMode]);
 
-  // EcoView 背景點擊處理 (退出邏輯)
-  const handleEcoBackgroundClick = useCallback(() => {
-      // 只有手動進入的省電模式，點擊背景才允許退出
+
+  // 2. 修正喚醒邏輯：區分三種 Eco 的喚醒行為
+  const handleEcoWake = useCallback(() => {
+      // 情境 A: 手動省電 -> 退出手動模式
       if (activeView === 'eco-manual') {
           setIsManualEco(false);
+          return;
       }
-      // eco-auto (放學) 點擊背景不執行退出，只會觸發 EcoView 內部的 UI 喚醒
-  }, [activeView]);
+
+      // 情境 B: 放學待機 -> 不退出 (只在 EcoView 內部喚醒 UI)
+      if (isOffHours) {
+          return;
+      }
+
+      // 情境 C: 上課自動省電 (statusMode === 'eco') -> 設定 Override 防止馬上又睡著
+      // 如果不是手動也不是放學，那一定是上課自動省電
+      setIsAutoEcoOverride(true);
+      
+  }, [activeView, isOffHours, setIsManualEco, setIsAutoEcoOverride]);
+
+  const tts = useTTS();
+  // 3. 修正 TTS 殘留：在關閉廣播或特殊狀態時強制 Cancel
+  const handleCloseAll = useCallback(() => {
+    setShowSettings(false);
+    setShowTools(false);
+    setShowBroadcastInput(false);
+    setSpecialStatus(null);
+    tts.cancel(); // ★ 修正：確保語音停止
+    setIsEditingMessage(false);
+    if (statusMode === 'break' && !dismissedNap) setDismissedNap(true);
+  }, [statusMode, dismissedNap, tts]);
 
   const uiKeyGuard = useMemo(() => ({
     isEditingMessage,
@@ -130,17 +162,7 @@ const Dashboard = ({ theme, cycleTheme}) => {
     showBroadcastInput,
   }), [isEditingMessage, showSettings, showBroadcastInput]);
   
-  // 統一關閉邏輯
-  const handleCloseAll = useCallback(() => {
-    setShowSettings(false);
-    setShowTools(false);
-    setShowBroadcastInput(false);
-    setSpecialStatus(null);
-    setIsEditingMessage(false);
-    if (statusMode === 'break' && !dismissedNap) setDismissedNap(true);
-  }, [statusMode, dismissedNap]);
-
-  const tts = useTTS();
+  
   const { isFullscreen, toggleFullScreen } = useDashboardEvents({
     specialStatus,
     isSystemSoundEnabled,
@@ -323,13 +345,15 @@ const Dashboard = ({ theme, cycleTheme}) => {
         {/* 3. Eco / 放學 (整合) */}
         {(activeView === 'eco-manual' || activeView === 'eco-auto') && (
           <EcoView 
-            now={now} schedule={schedule} currentSlot={currentSlot} is24Hour={is24Hour}
-            // 點擊背景的行為：手動模式退出，自動模式不動作(僅喚醒UI)
-            onBackgroundClick={handleEcoBackgroundClick}
-            // 點擊UI喚醒回調 (通常是為了確保從睡眠回來重置狀態)
-            onWake={() => { if(activeView === 'eco-manual') setIsAutoEcoOverride(true); }}
+            now={now} 
+            schedule={schedule} 
+            currentSlot={currentSlot} 
+            is24Hour={is24Hour}
+            
+            // ★ 修正：傳入新的統一喚醒處理函數
+            onWake={handleEcoWake}
+            
             weatherConfig={weatherConfig}
-            // 傳入幽靈模式的 Dock
             controlDock={renderDock(true)}
           />
         )}

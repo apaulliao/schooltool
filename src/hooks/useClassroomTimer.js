@@ -88,17 +88,17 @@ export function useClassroomTimer({
     return halfDaySlots;
   }, [timeSlots, dayTypes, day]);
 
-  // 3. 核心狀態判定邏輯
+  // 3. 核心狀態判定邏輯 (修正版)
   useEffect(() => {
-    // A. 優先權最高：全螢幕廣播模式 (排除跑馬燈)
+    // A. 優先權最高：全螢幕廣播
     if (specialStatus && specialStatus.mode !== 'marquee') { 
         setStatusMode('special'); 
         return; 
     }
 
-    // B. 手動省電模式
+    // B. 手動省電模式 (明確命名)
     if (isManualEco) { 
-        setStatusMode('eco'); 
+        setStatusMode('eco-manual'); 
         return; 
     }
 
@@ -139,16 +139,14 @@ export function useClassroomTimer({
 
     // D. 根據時段類型決定模式
     if (!foundSlot) {
-      // 🌟 當半天課的「放學」時段(20分鐘)結束後，foundSlot 會變成 null，
-      // 自然就會進入這裡，切換為 off-hours
-      setStatusMode('off-hours');
+      setStatusMode('off-hours'); // 這是第三種省電
     } else if (foundSlot.type === 'class') {
       const startSec = getSecondsFromTime(foundSlot.start);
       const elapsed = currentTimeSec - startSec;
       
-      // 自動進入省電 (上課 3 分鐘後，且未被手動取消)
+      // 自動進入省電 (上課 3 分鐘後，且未被 override)
       if (elapsed > 180 && !isAutoEcoOverride) {
-          setStatusMode('eco');
+          setStatusMode('eco-auto'); // 明確命名：自動省電
       } else {
           setStatusMode('class');
       }

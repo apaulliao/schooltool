@@ -46,13 +46,13 @@ const LauncherHeader = ({ user, login, setIsLogoutModalOpen, currentAppId }) => 
             onClick={() => setIsLogoutModalOpen(true)}
             className="group flex items-center gap-3 pl-1 pr-4 py-1.5 bg-white dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md hover:border-rose-200 dark:hover:border-rose-900 transition-all focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:outline-none"
           >
-            <img src={user.picture} alt="" className="w-10 h-10 rounded-full border border-slate-200 dark:border-slate-600" />
+            <img src={user.profileObj?.picture} alt="" className="w-10 h-10 rounded-full border border-slate-200 dark:border-slate-600" />
             <div className="flex flex-col items-start text-left">
               <span className="text-sm font-bold text-slate-700 dark:text-slate-200 leading-none group-hover:text-rose-500 transition-colors">
-                {user.name}
+                {user.profileObj?.name}
               </span>
               <span className="text-[10px] text-slate-400 font-mono mt-0.5 group-hover:hidden">
-                {user.email?.split('@')[0]}
+                {user.profileObj?.email?.split('@')[0]}
               </span>
               <span className="text-[10px] text-rose-500 font-bold mt-0.5 hidden group-hover:block animate-in slide-in-from-bottom-1">
                 點擊登出

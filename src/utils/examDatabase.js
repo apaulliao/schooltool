@@ -1,7 +1,7 @@
 // src/utils/examDatabase.js
 
 const DB_NAME = 'ExamReaderDB';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE_EXAMS = 'exams';
 const STORE_META = 'metadata';
 

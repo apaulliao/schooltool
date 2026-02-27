@@ -17,7 +17,12 @@ export const useExamCloud = ({
   const [shareModalData, setShareModalData] = useState({ isOpen: false, shareId: null, title: '' });
   const processedId = useRef(null);
 
-  const GOOGLE_API_KEY = "AIzaSyAZZ89XM6eE1ILdsscbILaS0C2fiWEh_-M"; // 您的 API Key
+  const apiKey = import.meta.env.VITE_GOOGLE_API_KEY;
+  
+  // 建議加入錯誤檢查，避免部署時因遺漏變數而導致系統異常
+	if (!apiKey) {
+	  console.error("尚未設定 VITE_GOOGLE_API_KEY 環境變數");
+	}
 
   // 🌟 1. 學生端：偵測 shareId 並自動下載
   useEffect(() => {
@@ -26,7 +31,7 @@ export const useExamCloud = ({
 
       setIsDownloading(true);
       try {
-        const sharedData = await downloadSharedExam(shareId, GOOGLE_API_KEY);
+        const sharedData = await downloadSharedExam(shareId, apiKey);
 
         if (sharedData) {
           // 處理發音字典

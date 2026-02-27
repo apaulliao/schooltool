@@ -1,6 +1,6 @@
 // src/config/apps.js
 import { lazy } from 'react';
-import { Monitor, ClipboardCheck, Users, Headphones } from 'lucide-react';
+import { Monitor, ClipboardCheck, Users, Headphones, Clipboard } from 'lucide-react';
 
 // Lazy Load 組件
 // 請根據您的實際檔案結構確認路徑，這裡假設是在 src/ 下
@@ -8,6 +8,7 @@ const Dashboard = lazy(() => import('../pages/Dashboard/Dashboard.jsx'));
 const ExamTool = lazy(() => import('../pages/ExamTool/ExamTool.jsx'));
 const Manager = lazy(() => import('../pages/Manager/Manager.jsx'));
 const ExamReader = lazy(() => import('../pages/ExamReader/ExamReader.jsx')); 
+const CaseLog = lazy(() => import('../pages/CaseLog/CaseLog.jsx'));
 
 export const APPS_CONFIG = [
   { 
@@ -42,4 +43,13 @@ export const APPS_CONFIG = [
     color: 'bg-emerald-500', 
     component: ExamReader 
   },
+  {
+    id: 'caselog',
+    name: '個案日誌',
+    icon: Clipboard, // 或使用 lucide-react 的 Clipboard
+    path: '/caselog',
+    description: '單生單檔的隱私紀錄與動態日誌',
+	color: 'bg-orange-500',
+	component: CaseLog 
+  }
 ];

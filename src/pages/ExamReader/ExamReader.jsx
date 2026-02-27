@@ -210,18 +210,20 @@ const ExamReader = ({ user, login, shareId, setShareId }) => {
       />
       {/* 派送彈窗 */}
       <ExamShareModal 
-        isOpen={shareModalData.isOpen}
-        onClose={() => setShareModalData({ ...shareModalData, isOpen: false })}
-        shareId={shareModalData.shareId}
-        examTitle={shareModalData.title}
-      />
+		  isOpen={shareModalData.isOpen} 
+		  shareId={shareModalData.shareId} 
+		  examTitle={shareModalData.title} // 👈 必須是 examTitle
+		  onClose={() => setShareModalData({ isOpen: false, shareId: null, title: '' })} 
+		/>
 	  <ExamPackageModal 
         isOpen={isPackageModalOpen}
         onClose={() => setIsPackageModalOpen(false)}
         isSharing={isSharing}
-        onConfirm={async (fullExams) => {
-          await handlePackageShare(fullExams);
-          setIsPackageModalOpen(false); // 派送完畢後關閉視窗
+        // ✅ 修改這裡：把三個參數都接起來
+        onConfirm={async (fullExams, displayTitle, cloudFileName) => {
+          // ✅ 修改這裡：把三個參數都傳給 handlePackageShare
+          await handlePackageShare(fullExams, displayTitle, cloudFileName);
+          setIsPackageModalOpen(false);
         }} 
       />
 	  {/* 🌟 加入 ExamHistoryModal */}

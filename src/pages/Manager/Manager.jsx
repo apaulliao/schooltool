@@ -167,6 +167,7 @@ const Manager = () => {
           scoreLogs: []
         });
         setIsEditingList(false);
+		closeDialog();
       }
     });
   } else {
