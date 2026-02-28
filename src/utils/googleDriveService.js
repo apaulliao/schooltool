@@ -9,6 +9,7 @@ const SHEETS_API = 'https://sheets.googleapis.com/v4/spreadsheets'; // 🌟 新�
 const ROOT_FOLDER_NAME = '智慧教室儀表板';
 const EXAM_FOLDER_NAME = '考卷派送檔';
 const CASELOG_FOLDER_NAME = '個案日誌檔'; // 🌟 新增個案日誌資料夾
+const CASELOG_ATTACHMENTS_FOLDER_NAME = '個案日誌附件檔'; // 🌟 新增：專門存放上傳照片的資料夾
 const BACKUP_FILE_NAME = '智慧教室儀表板設定檔.json'; 
 
 /**
@@ -369,6 +370,11 @@ export const fetchCaseLogData = async (token, spreadsheetId) => {
       headers: { Authorization: `Bearer ${token}` }
     });
 
+    // 🌟 新增：第一道防線，精準捕捉 Token 過期
+    if (driveRes.status === 401) {
+      throw new Error('TokenExpired');
+    }
+
     if (driveRes.ok) {
       const driveData = await driveRes.json();
       // 如果檔案的 trashed 屬性為 true，直接拋出遺失錯誤
@@ -385,6 +391,11 @@ export const fetchCaseLogData = async (token, spreadsheetId) => {
     const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/A2:G`, {
       headers: { Authorization: `Bearer ${token}` }
     });
+    
+    // 🌟 新增：第二道防線，精準捕捉 Token 過期
+    if (response.status === 401) {
+      throw new Error('TokenExpired');
+    }
     
     if (!response.ok) {
       if (response.status === 404 || response.status === 403 || response.status === 400) {
@@ -472,16 +483,78 @@ export const updateCaseLogRow = async (token, spreadsheetId, rowIndex, rowData) 
     },
     body: JSON.stringify({ values: [rowData] })
   });
-  if (!response.ok) throw new Error('更新日誌失敗');
+  
+  // 🌟 直接使用您寫好的攔截器
+  await checkResponse(response);
   return response.json();
 };
 
-// 🌟 清除特定列的資料 (取代實體刪除，避免破壞其他日誌的列數索引)
+// 🌟 清除特定列的資料
 export const clearCaseLogRow = async (token, spreadsheetId, rowIndex) => {
   const response = await fetch(`${SHEETS_API}/${spreadsheetId}/values/A${rowIndex}:G${rowIndex}:clear`, {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${token}` }
   });
-  if (!response.ok) throw new Error('清除日誌失敗');
+  
+  // 🌟 直接使用您寫好的攔截器
+  await checkResponse(response);
   return response.json();
+};
+
+/**
+ * 上傳實體圖片至 Google Drive 並設定為公開檢視
+ * @param {string} token - Google Access Token
+ * @param {File} file - 來自 input 的 File 物件
+ * @returns {Promise<Object>} 包含 driveId, url 與 name 的 Metadata
+ */
+export const uploadImageToDrive = async (token, file) => {
+  try {
+    // 1. 確保附件資料夾存在
+    const rootId = await getOrCreateFolder(token, ROOT_FOLDER_NAME);
+    const attachmentsFolderId = await getOrCreateFolder(token, CASELOG_ATTACHMENTS_FOLDER_NAME, rootId);
+
+    // 2. 準備 Multipart 上傳資料 (中介資料 + 檔案本體)
+    const metadata = {
+      name: `${Date.now()}_${file.name}`,
+      mimeType: file.type,
+      parents: [attachmentsFolderId]
+    };
+
+    const form = new FormData();
+    form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+    form.append('file', file);
+
+    // 3. 執行上傳
+    // 注意：使用 FormData 時，Fetch 會自動計算 boundary，切勿手動設定 Content-Type
+    const uploadRes = await fetch(`${UPLOAD_API}?uploadType=multipart&fields=id,webViewLink,webContentLink`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`
+      },
+      body: form
+    });
+    
+    await checkResponse(uploadRes);
+    const fileData = await uploadRes.json();
+
+    // 4. 設定為任何人皆可檢視 (確保家長透過網址檢視時不會看到破圖)
+    const permRes = await fetch(`${DRIVE_API}/${fileData.id}/permissions`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ role: 'reader', type: 'anyone' })
+    });
+    await checkResponse(permRes);
+
+    return {
+      driveId: fileData.id,
+      url: fileData.webViewLink || fileData.webContentLink,
+      name: file.name
+    };
+  } catch (error) {
+    console.error('圖片上傳至 Drive 失敗:', error);
+    throw error;
+  }
 };

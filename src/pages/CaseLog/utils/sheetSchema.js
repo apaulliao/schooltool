@@ -4,7 +4,7 @@ export const SHEET_HEADERS = [
 ];
 
 export const encodeRowData = (logEntry) => {
-  // 🌟 關鍵修改：將填寫的值 (values) 與當下的模板配置 (template) 一起打包
+  // 將填寫的值 (values) 與當下的模板配置 (template) 一起打包
   const payload = {
     values: logEntry.content || {},
     template: logEntry.template || [] 
@@ -17,7 +17,9 @@ export const encodeRowData = (logEntry) => {
     logEntry.templateId || 'default',
     JSON.stringify(payload), // 將打包後的 payload 轉為字串存入 E 欄
     logEntry.privateNote || '',
-    (logEntry.attachments || []).join(',')
+    
+    // 🌟 關鍵修改：將物件陣列 (包含 driveId, url 等) 轉為 JSON 字串存入 G 欄
+    JSON.stringify(logEntry.attachments || [])
   ];
 };
 
@@ -34,6 +36,21 @@ export const decodeRowData = (row, logId) => {
     console.error(`[CaseLog Schema] JSON 解析失敗 (Row ID: ${logId}):`, error);
   }
 
+  // 🌟 關鍵修改：安全解析附件的 JSON 字串
+  let parsedAttachments = [];
+  if (safeRow[6]) {
+    try {
+      parsedAttachments = JSON.parse(safeRow[6]);
+    } catch (error) {
+      // 容錯機制：如果讀取到舊版的逗號分隔字串，將它轉回物件格式避免系統崩潰
+      parsedAttachments = safeRow[6].split(',').filter(Boolean).map(url => ({ 
+        url: url, 
+        name: '舊版附件',
+        driveId: null // 舊版無 driveId 無法從雲端刪除，但至少不會報錯
+      }));
+    }
+  }
+
   return {
     id: logId,
     timestamp: safeRow[0] || '',
@@ -44,6 +61,8 @@ export const decodeRowData = (row, logId) => {
     content: parsedPayload.values || {},
     template: parsedPayload.template || [],
     privateNote: safeRow[5] || '',
-    attachments: safeRow[6] ? safeRow[6].split(',').filter(Boolean) : []
+    
+    // 🌟 賦值解析後的附件陣列
+    attachments: parsedAttachments
   };
 };

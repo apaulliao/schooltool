@@ -166,7 +166,7 @@ export default function ParentView() {
                   </div>
                   <div className="flex items-center gap-1.5">
                     <User size={14} className={UI_THEME.TEXT_MUTED} />
-                    <span className={`text-xs font-bold ${UI_THEME.TEXT_SECONDARY}`}>{log.author}</span>
+                    <span className={`text-xs font-bold ${UI_THEME.TEXT_SECONDARY}`}>{log.author.replace(' (已編輯)', '')}</span>
                   </div>
                 </div>
 
@@ -188,6 +188,33 @@ export default function ParentView() {
                     );
                   })}
                 </div>
+				{/* 🌟 新增：圖片附件渲染區塊 (家長端專用) */}
+                {log.attachments && log.attachments.length > 0 && (
+                  <div className={`px-5 pb-5 pt-3 border-t border-slate-100 dark:border-slate-800/50`}>
+                    <span className={`text-xs font-bold ${UI_THEME.TEXT_MUTED} block mb-3`}>
+                      照片紀錄
+                    </span>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      {log.attachments.map((file, idx) => {
+                        // 檢查是否有 driveId，避免舊版資料引發破圖
+                        const hasDriveId = Boolean(file.driveId);
+                        if (!hasDriveId) return null;
+
+                        return (
+                          <div key={idx} className={`relative aspect-square rounded-lg border ${UI_THEME.BORDER_DEFAULT} overflow-hidden bg-slate-100 dark:bg-slate-800`}>
+                            <a href={file.url} target="_blank" rel="noreferrer" title="點擊開啟原圖">
+                              <img
+                                src={`https://drive.google.com/thumbnail?id=${file.driveId}&sz=w800`}
+                                alt={file.name || '照片紀錄'}
+                                className="w-full h-full object-cover transition-transform hover:scale-105"
+                              />
+                            </a>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>

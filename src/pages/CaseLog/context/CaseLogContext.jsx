@@ -7,7 +7,8 @@ import {
   fetchCaseLogData,
   shareSheetWithParent,
   deleteCloudFile,
-  updateCaseLogRow, clearCaseLogRow  
+  updateCaseLogRow, clearCaseLogRow,
+  uploadImageToDrive  
 } from '../../../utils/googleDriveService';
 
 // 🌟 1. 引入剛剛建立好的 AuthContext
@@ -38,6 +39,35 @@ export const CaseLogProvider = ({ children, setAlertDialog }) => {
     }
     return user.accessToken;
   }, [user]);
+  
+  // 🌟 1. 新增：將日誌儲存為本地草稿 (不上傳雲端)
+  const saveDraft = useCallback(async (logData, existingDraftId = null) => {
+    const activeStudent = students.find(s => s.id === activeStudentId);
+    if (!activeStudent) return;
+
+    const draftId = existingDraftId || `draft_${Date.now()}`;
+    const draftLog = {
+      ...logData, // 包含 content, privateNote, attachments
+      id: draftId,
+      studentId: activeStudentId,
+      template: activeTemplate,
+      timestamp: new Date().toISOString(),
+      date: logData.date || new Date().toISOString().split('T')[0],
+      author: user?.profileObj?.name || '目前登入老師',
+      isDraft: true // 🌟 關鍵標記：這是一篇草稿
+    };
+
+    try {
+      await caseLogDB.saveLog(draftLog);
+      setLogs(prev => {
+        const filtered = prev.filter(l => l.id !== draftId);
+        return [draftLog, ...filtered]; // 實務上可再加 .sort() 排序
+      });
+      return draftId; // 回傳 ID 以便前端切換選取狀態
+    } catch (err) {
+      console.error('儲存草稿失敗', err);
+    }
+  }, [activeStudentId, students, activeTemplate, user]);
 
   // 統一的錯誤處理與重新登入邏輯
   const handleError = useCallback((err, defaultMessage) => {
@@ -106,7 +136,12 @@ export const CaseLogProvider = ({ children, setAlertDialog }) => {
         if (cachedTemplate) setActiveTemplate(cachedTemplate);
 
         const cachedLogs = await caseLogDB.getLogsByStudent(activeStudentId);
-        if (cachedLogs && cachedLogs.length > 0) setLogs(cachedLogs);
+        if (cachedLogs && cachedLogs.length > 0) {
+          // 🌟 保留去重邏輯：過濾掉快取中重複的日誌
+          const uniqueCachedLogs = Array.from(new Map(cachedLogs.map(item => [item.timestamp, item])).values());
+          setLogs(uniqueCachedLogs);
+        }
+		const localDrafts = cachedLogs ? cachedLogs.filter(log => log.isDraft) : [];
 
         // Step 2: 雲端同步 (若未登入則跳過雲端同步，僅顯示本地快取)
         if (!user || !user.accessToken) return;
@@ -122,9 +157,16 @@ export const CaseLogProvider = ({ children, setAlertDialog }) => {
           decoded.sheetRowIndex = index + 2; // 🌟 紀錄真實列數 (A2 是第 2 列，所以 index 0 + 2 = 2)
           return decoded;
         }).filter(Boolean).reverse();
-
+		
+		const uniqueParsedLogs = Array.from(new Map(parsedLogs.map(item => [item.timestamp, item])).values());
         setLogs(parsedLogs);
         await caseLogDB.syncLogsForStudent(activeStudentId, parsedLogs);
+		// 🌟 防護 2：將雲端日誌與剛剛提取的本地草稿合併
+        const combinedLogs = [...localDrafts, ...parsedLogs];
+
+        setLogs(combinedLogs);
+        // 同步回本地 IndexedDB 時，也寫入合併後的完整陣列
+        await caseLogDB.syncLogsForStudent(activeStudentId, combinedLogs);
 
       } catch (err) {
         // 🌟 加入除錯訊息，確認捕捉到的錯誤內容
@@ -191,7 +233,8 @@ export const CaseLogProvider = ({ children, setAlertDialog }) => {
   }, [getAuthToken, handleError]);
 
   // 寫入新日誌
-  const addLogEntry = useCallback(async (logData) => {
+  // 寫入新日誌
+  const addLogEntry = useCallback(async (logData, draftIdToRemove = null) => {
     const activeStudent = students.find(s => s.id === activeStudentId);
     if (!activeStudent || !activeStudent.sheetId) return;
     
@@ -199,27 +242,50 @@ export const CaseLogProvider = ({ children, setAlertDialog }) => {
     setError(null);
     try {
       const token = getAuthToken();
+
+      // 🌟 1. 處理附件上傳
+      const processedAttachments = [];
+      if (logData.attachments && logData.attachments.length > 0) {
+        for (const file of logData.attachments) {
+          if (file instanceof File) {
+            const driveData = await uploadImageToDrive(token, file);
+            processedAttachments.push(driveData);
+          } else {
+            processedAttachments.push(file);
+          }
+        }
+      }
       
       const fullLogData = {
         ...logData,
-		template: activeTemplate,
+        attachments: processedAttachments, // 🌟 將轉換好的圖片資料寫入
+        template: activeTemplate,
         timestamp: new Date().toISOString(),
-        date: new Date().toISOString().split('T')[0],
-        // 🌟 自動帶入 Google 帳號名稱 (若可用)
+        date: logData.date || new Date().toISOString().split('T')[0],
         author: user?.profileObj?.name || '目前登入老師' 
       };
+
       const rowData = encodeRowData(fullLogData);
       const result = await appendCaseLogRow(token, activeStudent.sheetId, rowData);
       
       const newLog = decodeRowData(rowData, `log_${Date.now()}`);
       newLog.studentId = activeStudentId;
+      newLog.attachments = processedAttachments; // 確保前端即時更新有圖片
       
-      // 🌟 透過 Google 回傳的 updatedRange (例如 '工作表1'!A15:G15) 萃取出行數 15
       const match = result?.updates?.updatedRange?.match(/\d+/g);
       newLog.sheetRowIndex = match ? parseInt(match[match.length - 1], 10) : (logs.length + 2);
       
       await caseLogDB.saveLog(newLog);
-      setLogs(prev => [newLog, ...prev]);
+
+      // 若這是一篇被發布的草稿，從本地 DB 清除它
+      if (draftIdToRemove && caseLogDB.deleteLog) {
+        await caseLogDB.deleteLog(draftIdToRemove).catch(() => {});
+      }
+
+      setLogs(prev => {
+        const next = draftIdToRemove ? prev.filter(l => l.id !== draftIdToRemove) : prev;
+        return [newLog, ...next];
+      });
     } catch (err) {
       handleError(err, '日誌儲存失敗。若處於離線狀態，請稍後重試。');
       throw err;
@@ -227,7 +293,7 @@ export const CaseLogProvider = ({ children, setAlertDialog }) => {
       setIsSyncing(false);
     }
   }, [activeStudentId, students, user, getAuthToken, handleError, activeTemplate]);
-
+  
   // 更新模板
   const saveTemplate = useCallback(async (newTemplate) => {
     if (!activeStudentId) return;
@@ -268,6 +334,7 @@ export const CaseLogProvider = ({ children, setAlertDialog }) => {
     }
   }, [students, activeStudentId, user, handleError]);
   
+  // 更新舊日誌
   const updateLogEntry = useCallback(async (logId, updatedData) => {
     const activeStudent = students.find(s => s.id === activeStudentId);
     const targetLog = logs.find(l => l.id === logId);
@@ -276,18 +343,47 @@ export const CaseLogProvider = ({ children, setAlertDialog }) => {
     setIsSyncing(true);
     try {
       const token = getAuthToken();
+
+      // 🌟 1. 處理被刪除的附件 (比對舊有圖片是否已從表單中被拔除)
+      const oldAttachments = targetLog.attachments || [];
+      const newAttachments = updatedData.attachments || [];
+      const removedAttachments = oldAttachments.filter(
+        oldAtt => !newAttachments.some(newAtt => newAtt.driveId === oldAtt.driveId)
+      );
+
+      for (const att of removedAttachments) {
+        if (att.driveId) {
+          try {
+            await deleteCloudFile(token, att.driveId);
+          } catch (e) {
+            console.error(`刪除舊圖片 ${att.driveId} 失敗`, e);
+          }
+        }
+      }
+
+      // 🌟 2. 處理新上傳的附件
+      const processedAttachments = [];
+      for (const file of newAttachments) {
+        if (file instanceof File) {
+          const driveData = await uploadImageToDrive(token, file);
+          processedAttachments.push(driveData);
+        } else {
+          processedAttachments.push(file);
+        }
+      }
+
       const fullLogData = {
-        ...targetLog, // 保留原有的 timestamp, date 等
-        ...updatedData, // 覆寫新的內容
+        ...targetLog, 
+        ...updatedData, 
+        attachments: processedAttachments, // 🌟 覆寫為最新的附件清單
         template: activeTemplate,
-        author: `${targetLog.author} (已編輯)` // 簡單標記已編輯
+        author: targetLog.author.includes('(已編輯)') ? targetLog.author : `${targetLog.author} (已編輯)` 
       };
       const rowData = encodeRowData(fullLogData);
 
       await updateCaseLogRow(token, activeStudent.sheetId, targetLog.sheetRowIndex, rowData);
       
-      const updatedLog = { ...targetLog, ...fullLogData, content: updatedData.content, privateNote: updatedData.privateNote };
-      
+      const updatedLog = { ...fullLogData };
       await caseLogDB.saveLog(updatedLog);
       setLogs(prev => prev.map(l => l.id === logId ? updatedLog : l));
     } catch (err) {
@@ -298,17 +394,37 @@ export const CaseLogProvider = ({ children, setAlertDialog }) => {
     }
   }, [activeStudentId, students, logs, activeTemplate, getAuthToken, handleError]);
 
+  // 刪除日誌
   const deleteSingleLog = useCallback(async (logId) => {
     const activeStudent = students.find(s => s.id === activeStudentId);
     const targetLog = logs.find(l => l.id === logId);
-    if (!activeStudent || !targetLog || !targetLog.sheetRowIndex) return;
+    if (!activeStudent || !targetLog) return;
+    if (!targetLog.isDraft && !targetLog.sheetRowIndex) return;
 
     setIsSyncing(true);
     try {
+      if (targetLog.isDraft) {
+        if (caseLogDB.deleteLog) await caseLogDB.deleteLog(logId);
+        setLogs(prev => prev.filter(l => l.id !== logId));
+        return; 
+      }
+
       const token = getAuthToken();
+
+      // 🌟 新增：在刪除文字前，先將雲端硬碟中的圖片實體刪除
+      if (targetLog.attachments && targetLog.attachments.length > 0) {
+        for (const att of targetLog.attachments) {
+          if (att.driveId) {
+            try {
+              await deleteCloudFile(token, att.driveId);
+            } catch (imgErr) {
+              console.error(`圖片 ${att.driveId} 刪除失敗，略過此檔案`, imgErr);
+            }
+          }
+        }
+      }
+
       await clearCaseLogRow(token, activeStudent.sheetId, targetLog.sheetRowIndex);
-      
-      // 這裡不依賴 IndexedDB 原生刪除，我們直接在下一次同步時覆蓋
       setLogs(prev => prev.filter(l => l.id !== logId));
     } catch (err) {
       handleError(err, '刪除日誌失敗。');
@@ -316,8 +432,8 @@ export const CaseLogProvider = ({ children, setAlertDialog }) => {
     } finally {
       setIsSyncing(false);
     }
-  }, [activeStudentId, students, logs, getAuthToken, handleError]);
-
+  }, [activeStudentId, students, logs, getAuthToken, handleError]);  
+  
   // 產生家長檢視連結
 const generateParentLink = useCallback(async () => {
     const activeStudent = students.find(s => s.id === activeStudentId);
@@ -361,6 +477,7 @@ const generateParentLink = useCallback(async () => {
     clearError: () => setError(null),
 	deleteStudentProfile,
 	updateLogEntry,
+	saveDraft,
 	deleteSingleLog
   };
 

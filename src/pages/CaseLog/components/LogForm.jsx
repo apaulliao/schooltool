@@ -1,32 +1,132 @@
 import React, { useState, useEffect } from 'react';
-import { Star, Upload, Send, Lock, X, FileText, Edit3 } from 'lucide-react';
+import { Star, Upload, Send, Lock, X, FileText, Edit3, Calendar, Save, Trash2, Trash } from 'lucide-react';
 import { UI_THEME } from '../../../utils/constants';
+
+const getLocalToday = () => {
+  const tzOffset = new Date().getTimezoneOffset() * 60000; 
+  return new Date(Date.now() - tzOffset).toISOString().split('T')[0];
+};
 
 export default function LogForm({ 
   template = [], 
-  onSubmit, 
+  onSubmit,
+  onSaveDraft,
+  onDeleteDraft,  
   isSubmitting = false, 
   initialData = null, // 🌟 新增 prop
-  onCancel = null     // 🌟 新增 prop
+  onCancel = null,     // 🌟 新增 prop
+  activeStudentId, // 🌟 接收學生 ID 作為草稿的獨立 Key
+  logId = 'new'
 }) {
   // 🌟 1. 保持您原本的變數名稱，並讓初始值優先讀取 initialData
   const [formData, setFormData] = useState(initialData?.content || {});
   const [privateNote, setPrivateNote] = useState(initialData?.privateNote || '');
   const [attachments, setAttachments] = useState(initialData?.attachments || []);
-
-  // 🌟 2. 新增這個 useEffect：當點擊不同篇舊日誌、或切換回新增模式時，能即時更新表單內容
+  const [logDate, setLogDate] = useState(initialData?.date || getLocalToday());
+  const [bufferStatus, setBufferStatus] = useState(null);
+  
   useEffect(() => {
-    if (initialData) {
+    const bufferKey = `caselog_buffer_${activeStudentId}_${logId}`;
+    const bufferStr = localStorage.getItem(bufferKey);
+
+    if (bufferStr) {
+      try {
+        const buffer = JSON.parse(bufferStr);
+        setFormData(buffer.formData || {});
+        setPrivateNote(buffer.privateNote || '');
+        setLogDate(buffer.logDate || initialData?.date || getLocalToday());
+        setAttachments(initialData?.attachments || []); 
+        setBufferStatus('已復原尚未儲存的輸入內容');
+      } catch (e) {
+        console.error('緩衝區解析失敗', e);
+      }
+    } else if (initialData) {
       setFormData(initialData.content || {});
       setPrivateNote(initialData.privateNote || '');
       setAttachments(initialData.attachments || []);
+      setLogDate(initialData.date || getLocalToday());
+      setBufferStatus(null);
     } else {
-      // 如果切換回「新增模式」，就把表單清空
       setFormData({});
       setPrivateNote('');
       setAttachments([]);
+      setLogDate(getLocalToday());
+      setBufferStatus(null);
     }
-  }, [initialData]);
+  }, [initialData, activeStudentId, logId]);
+
+  // 🌟 2. 背景自動備份：停止輸入 1.5 秒後，寫入專屬 Key 的緩衝區
+  useEffect(() => {
+    if (!activeStudentId) return;
+
+    const timeoutId = setTimeout(() => {
+      if (Object.keys(formData).length > 0 || privateNote.trim() !== '') {
+        const bufferKey = `caselog_buffer_${activeStudentId}_${logId}`;
+        localStorage.setItem(bufferKey, JSON.stringify({ formData, privateNote, logDate }));
+        setBufferStatus(`暫存草稿 (${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})`);
+      }
+    }, 1500); 
+
+    return () => clearTimeout(timeoutId);
+  }, [formData, privateNote, logDate, activeStudentId, logId]);
+
+  // 🌟 3. 清除緩衝區：讓老師可以捨棄剛才亂打的字，退回原本狀態
+  const clearBuffer = () => {
+    localStorage.removeItem(`caselog_buffer_${activeStudentId}_${logId}`);
+    if (initialData) {
+      setFormData(initialData.content || {});
+      setPrivateNote(initialData.privateNote || '');
+      setLogDate(initialData.date || new Date().toISOString().split('T')[0]);
+    } else {
+      setFormData({});
+      setPrivateNote('');
+      setLogDate(new Date().toISOString().split('T')[0]);
+    }
+    setBufferStatus('已捨棄未儲存內容');
+    setTimeout(() => setBufferStatus(null), 2000);
+  };
+
+  const handleSaveDraft = async () => {
+    await onSaveDraft({ content: formData, privateNote, attachments, date: logDate });
+    // 🌟 順利存成「實體草稿」後，清掉防呆緩衝區
+    localStorage.removeItem(`caselog_buffer_${activeStudentId}_${logId}`);
+    
+    if (!initialData) {
+      setFormData({});
+      setPrivateNote('');
+      setAttachments([]);
+      setLogDate(new Date().toISOString().split('T')[0]);
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await onSubmit({ content: formData, privateNote, attachments, date: logDate });
+      // 🌟 順利發布後，清掉防呆緩衝區
+      localStorage.removeItem(`caselog_buffer_${activeStudentId}_${logId}`);
+      
+      if (!initialData) {
+        setFormData({});
+        setPrivateNote('');
+        setAttachments([]);
+        setLogDate(new Date().toISOString().split('T')[0]);
+      }
+    } catch (error) {
+      console.error('日誌發布失敗，保留表單內容', error);
+    }
+  };
+  
+  // 3. 手動清除草稿
+  const clearDraft = () => {
+    if (!activeStudentId) return;
+    localStorage.removeItem(`caselog_draft_${activeStudentId}`);
+    setFormData({});
+    setPrivateNote('');
+    setLogDate(new Date().toISOString().split('T')[0]);
+    setDraftStatus('草稿已清除');
+    setTimeout(() => setDraftStatus(null), 2000);
+  };
 
   // 更新單一欄位值 (Text, Select, Rating)
   const handleValueChange = (id, value) => {
@@ -46,38 +146,16 @@ export default function LogForm({
   };
 
   // 處理圖片上傳 (前端模擬預覽，實務需透過 Drive API 上傳)
-  const handleFileChange = (e) => {
+  const handleImageSelect = (e) => {
     const files = Array.from(e.target.files);
-    if (files.length > 0) {
-      setAttachments((prev) => [...prev, ...files]);
-    }
-    // 清空 input 值允許重複選擇相同檔案
-    e.target.value = '';
+    if (!files.length) return;
+    
+    // 將新選擇的檔案加入陣列中
+    setAttachments(prev => [...prev, ...files]);
   };
 
   const removeAttachment = (indexToRemove) => {
-    setAttachments((prev) => prev.filter((_, index) => index !== indexToRemove));
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      // 1. 等待上層 (TeacherDashboard) 呼叫 API 儲存資料
-      // 注意：這裡必須加上 await，確保真的存檔成功了才往下走
-      await onSubmit({ content: formData, privateNote, attachments });
-
-      // 2. 判斷如果是「新增模式」(沒有傳入 initialData)
-      // 就在存檔成功後，把表單狀態歸零，還原成乾淨的新日誌狀態
-      if (!initialData) {
-        setFormData({});
-        setPrivateNote('');
-        setAttachments([]);
-      }
-      
-    } catch (error) {
-      // 如果存檔失敗，保留表單內容讓老師可以重試
-      console.error('日誌發布失敗，保留表單內容', error);
-    }
+    setAttachments(prev => prev.filter((_, idx) => idx !== indexToRemove));
   };
 
   // 渲染動態積木
@@ -151,16 +229,57 @@ export default function LogForm({
 
       case 'image':
         return (
-          <div className="mt-2">
-            <label className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-xl cursor-pointer ${UI_THEME.BORDER_DEFAULT} hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors`}>
-              <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                <Upload className={`w-8 h-8 mb-3 ${UI_THEME.TEXT_MUTED}`} />
-                <p className={`text-sm font-bold ${UI_THEME.TEXT_SECONDARY}`}>點擊上傳照片</p>
-              </div>
-              <input type="file" className="hidden" accept="image/*" multiple onChange={handleFileChange} />
-            </label>
+        <div className="flex flex-col gap-4">
+          {/* 上傳按鈕區 */}
+          <div className="relative">
+            <input 
+              type="file" 
+              multiple 
+              accept="image/jpeg, image/png, image/webp" 
+              onChange={handleImageSelect}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+              disabled={isSubmitting}
+            />
+            <div className={`w-full py-6 border-2 border-dashed rounded-xl flex flex-col items-center justify-center gap-2 transition-colors ${UI_THEME.BORDER_DEFAULT} hover:border-blue-400 hover:bg-blue-50/50 dark:hover:bg-slate-800/50`}>
+              <Upload size={24} className={UI_THEME.TEXT_MUTED} />
+              <span className={`text-sm font-bold ${UI_THEME.TEXT_SECONDARY}`}>點擊或拖曳上傳照片</span>
+              <span className={`text-xs ${UI_THEME.TEXT_MUTED}`}>支援 JPG, PNG, WEBP</span>
+            </div>
           </div>
-        );
+
+          {/* 🌟 縮圖預覽與移除網格 */}
+          {attachments.length > 0 && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-2">
+              {attachments.map((file, idx) => {
+                const isLocalFile = file instanceof File;
+                // 🌟 修正：利用 driveId 組合出可用於 <img> 的直連網址
+                const src = isLocalFile ? URL.createObjectURL(file) : `https://drive.google.com/thumbnail?id=${file.driveId}&sz=w800`;
+                const fileName = isLocalFile ? file.name : file.name;
+
+                return (
+                  <div key={idx} className="relative group aspect-square rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden bg-slate-100 dark:bg-slate-800">
+                    <img 
+                      src={src} 
+                      alt={fileName} 
+                      className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                    />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <button
+                        type="button"
+                        onClick={() => removeAttachment(idx)}
+                        disabled={isSubmitting}
+                        className="p-2 bg-rose-500 text-white rounded-full hover:bg-rose-600 transition-transform hover:scale-110 shadow-lg"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      );
 
       default:
         return <div className="text-red-500 text-sm font-bold">未知的欄位類型: {block.type}</div>;
@@ -188,6 +307,43 @@ export default function LogForm({
           </h3>
         </div>
       )}
+	  
+	  {/* 🌟 新增：日期選擇器 */}
+      <div className="flex flex-col md:flex-row md:items-center gap-4 mb-2 pb-4 border-b border-slate-100 dark:border-slate-800/50">
+	  <div className="flex items-center gap-4">
+        <label className={`text-sm font-bold flex items-center gap-2 ${UI_THEME.TEXT_SECONDARY}`}>
+          <Calendar size={18} />
+          記錄日期：
+        </label>
+        <input 
+          type="date" 
+          value={logDate}
+          onChange={(e) => setLogDate(e.target.value)}
+          className={`p-2 rounded-lg text-sm font-bold w-full md:w-auto ${UI_THEME.INPUT_BASE}`}
+          required
+        />
+      </div>
+	  
+	  {/* 顯示防呆緩衝區狀態 */}
+        {bufferStatus && (
+          <div className="flex items-center gap-3 text-sm animate-in fade-in duration-300">
+            <span className="text-slate-500 dark:text-slate-400 flex items-center gap-1.5 font-bold">
+              <Save size={16} className="opacity-70" /> {bufferStatus}
+            </span>
+            <button
+              type="button"
+              onClick={clearBuffer}
+              className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-900/30 px-2 py-1 rounded-md transition-colors flex items-center gap-1 font-bold"
+              title="清除暫存檔"
+            >
+              <Trash size={14} /> 清除暫存
+            </button>
+          </div>
+        )}
+      </div>
+	  
+	  
+	  
       
       {/* 🌟 響應式動態表單渲染區 (Grid Layout) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
@@ -261,6 +417,29 @@ export default function LogForm({
             取消編輯
           </button>
         )}
+		
+		{/* 🌟 新增：草稿按鈕 (僅在新增模式或編輯草稿時顯示) */}
+		{initialData?.isDraft && onDeleteDraft && (
+          <button
+            type="button"
+            onClick={onDeleteDraft}
+            disabled={isSubmitting}
+            className={`px-6 py-3.5 rounded-xl font-bold transition-all text-rose-600 bg-rose-50 hover:bg-rose-100 dark:bg-rose-900/30 dark:hover:bg-rose-900/50 dark:text-rose-400`}
+          >
+            捨棄草稿
+          </button>
+        )}
+		
+        {(!initialData || initialData.isDraft) && (
+          <button
+            type="button"
+            onClick={handleSaveDraft}
+            disabled={isSubmitting}
+            className={`px-6 py-3.5 rounded-xl font-bold transition-all border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200`}
+          >
+            儲存為草稿
+          </button>
+        )}
         
         {/* 送出按鈕 (根據是否為編輯模式切換文字) */}
         <button
@@ -273,7 +452,7 @@ export default function LogForm({
           {isSubmitting ? (
             <span className="animate-pulse">儲存中...</span>
           ) : (
-            <span>{initialData ? '儲存修改' : '發布日誌'}</span>
+            <span>{(initialData && !initialData.isDraft ? '儲存修改' : '正式發布')}</span>
           )}
         </button>
       </div>

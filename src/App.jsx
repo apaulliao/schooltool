@@ -136,6 +136,16 @@ const ClassroomOS = () => {
         onClose={() => setShowHistoryNotes(false)} 
         mode="history" 
       />
+	  {/* 🌟 新增：自動跳出的最新版本更新日誌 */}
+      <PatchNotesModal 
+        isOpen={showLatestNotes} 
+        mode="latest" 
+        onClose={() => {
+          setShowLatestNotes(false);
+          // 🌟 關鍵：使用者關閉後，將當前版本號寫入 localStorage，下次就不會再跳出了
+          localStorage.setItem('last_seen_version', APP_VERSION); 
+        }} 
+      />
 
     </div>
   );

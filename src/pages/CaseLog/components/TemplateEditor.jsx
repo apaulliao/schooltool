@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Plus, Trash2, GripVertical, Settings, Save, AlertCircle } from 'lucide-react';
 // 依照規範，引用全域共用常數與對話框
 import { UI_THEME } from '../../../utils/constants';
@@ -19,6 +19,10 @@ export default function TemplateEditor({ initialTemplate = [], onSave }) {
   const [blocks, setBlocks] = useState(initialTemplate);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [blockToDelete, setBlockToDelete] = useState(null);
+
+  // 🌟 1. 新增：拖曳排序需要的 Ref
+  const dragItem = useRef(null);
+  const dragOverItem = useRef(null);
 
   // 新增積木
   const handleAddBlock = (type) => {
@@ -48,6 +52,37 @@ export default function TemplateEditor({ initialTemplate = [], onSave }) {
   // 更新積木內容
   const updateBlock = (id, field, value) => {
     setBlocks(blocks.map(b => b.id === id ? { ...b, [field]: value } : b));
+  };
+
+  // 🌟 2. 新增：拖曳事件處理函式
+  const handleDragStart = (e, index) => {
+    dragItem.current = index;
+    e.dataTransfer.effectAllowed = "move";
+    // 讓被拖曳的物件稍微變透明，增加視覺回饋
+    setTimeout(() => { e.target.style.opacity = "0.5"; }, 0);
+  };
+
+  const handleDragEnter = (e, index) => {
+    dragOverItem.current = index;
+  };
+
+  const handleDragEnd = (e) => {
+    e.target.style.opacity = "1"; // 恢復透明度
+    
+    // 如果有正確抓取與放置，且位置有變動，則進行陣列重排
+    if (dragItem.current !== null && dragOverItem.current !== null && dragItem.current !== dragOverItem.current) {
+      const newBlocks = [...blocks];
+      const draggedBlock = newBlocks[dragItem.current];
+      // 移除原位置的項目
+      newBlocks.splice(dragItem.current, 1);
+      // 插入到新位置
+      newBlocks.splice(dragOverItem.current, 0, draggedBlock);
+      setBlocks(newBlocks);
+    }
+    
+    // 重置 Ref
+    dragItem.current = null;
+    dragOverItem.current = null;
   };
 
   // 渲染選項編輯器 (針對 checkbox 與 select)
@@ -96,7 +131,7 @@ export default function TemplateEditor({ initialTemplate = [], onSave }) {
               <button
                 key={bt.type}
                 onClick={() => handleAddBlock(bt.type)}
-                className={`flex items-center gap-2 p-3 rounded-lg text-sm font-bold text-left ${UI_THEME.BTN_SECONDARY}`}
+                className={`flex items-center gap-2 p-3 rounded-lg text-sm font-bold text-left ${UI_THEME.BTN_SECONDARY} hover:border-blue-300 dark:hover:border-blue-600 transition-colors`}
               >
                 <span>{bt.icon}</span>
                 {bt.label}
@@ -117,9 +152,16 @@ export default function TemplateEditor({ initialTemplate = [], onSave }) {
               {blocks.map((block, index) => (
                 <div 
                   key={block.id} 
-                  className={`p-4 rounded-xl border flex gap-3 group transition-all ${UI_THEME.SURFACE_CARD} ${UI_THEME.BORDER_DEFAULT} hover:border-blue-400 dark:hover:border-blue-500`}
+                  // 🌟 3. 新增：將外層容器設為可拖曳，並綁定事件
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, index)}
+                  onDragEnter={(e) => handleDragEnter(e, index)}
+                  onDragEnd={handleDragEnd}
+                  onDragOver={(e) => e.preventDefault()} // 必須 preventDefault 才能觸發 Drop/DragEnd 重排
+                  className={`p-4 rounded-xl border flex gap-3 group transition-all cursor-grab active:cursor-grabbing ${UI_THEME.SURFACE_CARD} ${UI_THEME.BORDER_DEFAULT} hover:border-blue-400 dark:hover:border-blue-500 shadow-sm`}
                 >
-                  <div className={`cursor-grab mt-2 text-slate-300 dark:text-slate-600 hover:text-blue-500`}>
+                  {/* 握把 Icon */}
+                  <div className={`mt-2 text-slate-300 dark:text-slate-600 group-hover:text-blue-500 transition-colors`}>
                     <GripVertical size={20} />
                   </div>
                   
