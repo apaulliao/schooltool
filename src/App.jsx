@@ -7,7 +7,7 @@ import { OSProvider, useOS } from './context/OSContext';
 import { ClassroomProvider } from './context/ClassroomContext';
 import { ModalProvider } from './context/ModalContext';
 // 🌟 1. 引入剛剛做好的 AuthContext
-import { useAuth } from './context/AuthContext'; 
+import { useAuth } from './context/AuthContext';
 
 // 🌟 Config
 import { APPS_CONFIG } from './config/apps';
@@ -16,6 +16,7 @@ import { APP_VERSION } from './utils/patchNotesData';
 // 🌟 Components
 import AppLauncher from './components/OS/AppLauncher';
 import PatchNotesModal from './components/common/PatchNotesModal';
+import ModalRoot from './components/common/ModalRoot';
 
 const LoadingScreen = () => (
   <div className={`w-full h-full flex flex-col items-center justify-center ${UI_THEME.BACKGROUND}`}>
@@ -34,7 +35,7 @@ const LoadingScreen = () => (
 const ClassroomOS = () => {
   const { theme, cycleTheme } = useThemeContext();
   const [isLauncherOpen, setIsLauncherOpen] = useState(false);
-  const { currentAppId, setCurrentAppId, launcherPosition } = useOS(); 
+  const { currentAppId, setCurrentAppId, launcherPosition } = useOS();
 
   // 🌟 2. 一行程式碼，取代原本幾十行的登入狀態與邏輯！
   const { user, login, logout } = useAuth();
@@ -54,8 +55,8 @@ const ClassroomOS = () => {
   }, []);
 
   // 🌟 1. 判斷是否為家長模式
-  const isParentView = window.location.pathname.includes('/parent/view') || 
-                       window.location.search.includes('token=');
+  const isParentView = window.location.pathname.includes('/parent/view') ||
+    window.location.search.includes('token=');
 
   // 🌟 2. 如果是家長模式，強制將當前 App 切換為 'caselog'
   useEffect(() => {
@@ -69,7 +70,7 @@ const ClassroomOS = () => {
     const code = urlParams.get('shareId');
     if (code) {
       setShareId(code);
-      setCurrentAppId('reader'); 
+      setCurrentAppId('reader');
     }
   }, [setCurrentAppId]);
 
@@ -79,10 +80,10 @@ const ClassroomOS = () => {
 
   return (
     <div className={`relative w-full h-full ${UI_THEME.BACKGROUND} overflow-hidden transition-colors duration-500`}>
-      
+
       {/* 🌟 3. 只有「不是」家長模式時，才顯示啟動器按鈕 */}
       {!isParentView && (
-        <button 
+        <button
           onClick={() => setIsLauncherOpen(true)}
           className={`
             fixed bottom-4 ${buttonPosClass} z-[10000]
@@ -101,52 +102,53 @@ const ClassroomOS = () => {
         >
           <Grid size={24} className="transition-transform group-hover:rotate-90" />
           <span className="max-w-0 overflow-hidden group-hover:max-w-xs transition-all duration-300 font-bold whitespace-nowrap opacity-0 group-hover:opacity-100">
-              系統選單
+            系統選單
           </span>
         </button>
       )}
 
       {/* 主畫面 */}
       <div className="w-full h-full" aria-hidden={isLauncherOpen}>
-         <Suspense fallback={<LoadingScreen />}>
-            <CurrentComponent 
-                theme={theme} 
-                cycleTheme={cycleTheme} 
-                user={user}
-                login={login}
-                shareId={shareId}
-                setShareId={setShareId}
-            />
-         </Suspense>
+        <Suspense fallback={<LoadingScreen />}>
+          <CurrentComponent
+            theme={theme}
+            cycleTheme={cycleTheme}
+            user={user}
+            login={login}
+            shareId={shareId}
+            setShareId={setShareId}
+          />
+        </Suspense>
       </div>
 
       {/* 🌟 4. 只有「不是」家長模式時，才掛載 AppLauncher */}
       {!isParentView && (
-        <AppLauncher 
-          isOpen={isLauncherOpen} 
-          onClose={() => setIsLauncherOpen(false)} 
+        <AppLauncher
+          isOpen={isLauncherOpen}
+          onClose={() => setIsLauncherOpen(false)}
           user={user}
           login={login}
           logout={logout}
           onOpenPatchNotes={() => setShowHistoryNotes(true)}
         />
       )}
-      <PatchNotesModal 
-        isOpen={showHistoryNotes} 
-        onClose={() => setShowHistoryNotes(false)} 
-        mode="history" 
+      <PatchNotesModal
+        isOpen={showHistoryNotes}
+        onClose={() => setShowHistoryNotes(false)}
+        mode="history"
       />
-	  {/* 🌟 新增：自動跳出的最新版本更新日誌 */}
-      <PatchNotesModal 
-        isOpen={showLatestNotes} 
-        mode="latest" 
+      {/* 🌟 新增：自動跳出的最新版本更新日誌 */}
+      <PatchNotesModal
+        isOpen={showLatestNotes}
+        mode="latest"
         onClose={() => {
           setShowLatestNotes(false);
           // 🌟 關鍵：使用者關閉後，將當前版本號寫入 localStorage，下次就不會再跳出了
-          localStorage.setItem('last_seen_version', APP_VERSION); 
-        }} 
+          localStorage.setItem('last_seen_version', APP_VERSION);
+        }}
       />
 
+      <ModalRoot />
     </div>
   );
 };
@@ -157,7 +159,7 @@ const App = () => (
     <ClassroomProvider>
       <ModalProvider>
         <ThemeProvider>
-           <ClassroomOS />
+          <ClassroomOS />
         </ThemeProvider>
       </ModalProvider>
     </ClassroomProvider>

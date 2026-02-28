@@ -1,52 +1,50 @@
 import React, { useState, useEffect } from 'react';
-import { AlertCircle,PlayCircle } from 'lucide-react';
+import { AlertCircle, PlayCircle } from 'lucide-react';
 import { useWakeLock } from './hooks/useWakeLock';
 import { useExamLogic } from './hooks/useExamLogic';
-import { useModalManager } from '../../hooks/useModalManager';
+import { useModalContext } from '../../context/ModalContext';
 import { useClassroomContext } from '../../context/ClassroomContext';
 
-import DialogModal from '../../components/common/DialogModal';
-import AttendanceModal from '../../pages/Manager/modals/AttendanceModal';
+
 import ExamSettingsModal from './components/ExamSettingsModal';
 import ExamControlDock from './components/ExamControlDock';
 import ExamMainStage from './components/ExamMainStage';
 import QuickExamModal from './components/QuickExamModal';
 import ManualAttendanceModal from './components/ManualAttendanceModal';
 import { ChevronLeft, ChevronRight, Clock } from 'lucide-react';
-import { UI_THEME } from '../../utils/constants';
+import { UI_THEME, MODAL_ID } from '../../utils/constants';
 
 const ExamTool = () => {
   useWakeLock();
 
   // 1. 從 Context 取得資料來源
-  const { 
-    classes = [], 
-    currentClass, 
+  const {
+    classes = [],
+    currentClass,
     setCurrentClassId, // <--- 改用這個原名
-    updateAttendance 
+    updateAttendance
   } = useClassroomContext();
 
   // 2. 取得測驗邏輯與自動計算的狀態
   const {
-    schedule, setSchedule, ttsRules, setTtsRules, 
+    schedule, setSchedule, ttsRules, setTtsRules,
     announcements, setAnnouncements,
     audioFiles, uploadAudio, removeAudio,
     attendanceStats, // 這裡已經包含 expected, actual, absentees
-    currentStatus, 
+    currentStatus,
     setManualExtension,
     speak, isPlayingAudio, toggleAudio,
-	isManualMode, setIsManualMode,
+    isManualMode, setIsManualMode,
     manualData, setManualData,
-	startQuickExam, // ★ 取得新函式
+    startQuickExam, // ★ 取得新函式
     stopQuickExam,  // ★ 取得新函式
     isQuickExam,
-	isMuted, setIsMuted   
+    isMuted, setIsMuted
   } = useExamLogic();
 
   // 3. UI 狀態管理
-  const { dialogConfig, openDialog, closeDialog } = useModalManager();
+  const { openDialog, closeDialog, openModal } = useModalContext();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isAttendanceOpen, setIsAttendanceOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
   const [isQuickExamModalOpen, setIsQuickExamModalOpen] = useState(false);
@@ -57,24 +55,24 @@ const ExamTool = () => {
     if (currentStatus.status === 'exam') setIsSidebarOpen(false);
   }, [currentStatus.status]);
 
-// ★★★ 新增：處理臨時測驗點擊 ★★★
+  // ★★★ 新增：處理臨時測驗點擊 ★★★
   const handleQuickExam = () => {
     setIsQuickExamModalOpen(true);
   };
 
   const handleStopQuickExam = () => {
-      openDialog({
-          isOpen: true,
-          title: '結束測驗',
-          message: '確定要結束目前的臨時測驗嗎？',
-          type: 'confirm',
-          variant: 'danger',
-          onConfirm: () => {
-              stopQuickExam();
-              closeDialog();
-          },
-          onClose: closeDialog
-      });
+    openDialog({
+      isOpen: true,
+      title: '結束測驗',
+      message: '確定要結束目前的臨時測驗嗎？',
+      type: 'confirm',
+      variant: 'danger',
+      onConfirm: () => {
+        stopQuickExam();
+        closeDialog();
+      },
+      onClose: closeDialog
+    });
   };
 
   // 4. 事件處理
@@ -110,7 +108,7 @@ const ExamTool = () => {
 
       // 3. 決定樣式
       let cardClass = `relative p-4 rounded-xl border-2 transition-all duration-300 `;
-      
+
       if (isExamining) {
         // 🔴 正在考試：深藍色、放大、陰影
         cardClass += "bg-blue-50 dark:bg-blue-900/40 border-blue-500 shadow-lg scale-105 z-10";
@@ -139,7 +137,7 @@ const ExamTool = () => {
           <div className="text-xs font-mono font-bold text-slate-400 mb-1">
             {slot.start} - {slot.end}
           </div>
-          
+
           <div className={`font-bold text-lg leading-tight ${isExamining ? 'text-blue-700 dark:text-blue-300' : isNextUp ? 'text-amber-700 dark:text-amber-300' : 'text-slate-700 dark:text-slate-300'}`}>
             {slot.name}
           </div>
@@ -160,41 +158,41 @@ const ExamTool = () => {
 
           <div className="mb-6">
             <label htmlFor="exam-class-selector" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">
-			班級選擇
-			</label>
-            <select   id="exam-class-selector" name="examClass"
-			  className={`w-full px-3 py-2 rounded-lg border ${UI_THEME.INPUT_BASE}`}
-			  // 這裡做一個特殊的 value 處理
-			  value={isManualMode ? 'manual-mode' : (currentClass?.id || '')}
-			  onChange={(e) => {
-				if (e.target.value === 'manual-mode') {
-				  setIsManualMode(true);
-				} else {
-				  setIsManualMode(false);
-				  if (setCurrentClassId) setCurrentClassId(e.target.value);
-				}
-			  }}
-			>
-			  <option value="manual-mode">📝 手動輸入模式 (自定義)</option>
-			  <optgroup label="我的班級">
-				{classes.map(cls => (
-				  <option key={cls.id} value={cls.id}>{cls.name}</option>
-				))}
-			  </optgroup>
-			</select>
-            
+              班級選擇
+            </label>
+            <select id="exam-class-selector" name="examClass"
+              className={`w-full px-3 py-2 rounded-lg border ${UI_THEME.INPUT_BASE}`}
+              // 這裡做一個特殊的 value 處理
+              value={isManualMode ? 'manual-mode' : (currentClass?.id || '')}
+              onChange={(e) => {
+                if (e.target.value === 'manual-mode') {
+                  setIsManualMode(true);
+                } else {
+                  setIsManualMode(false);
+                  if (setCurrentClassId) setCurrentClassId(e.target.value);
+                }
+              }}
+            >
+              <option value="manual-mode">📝 手動輸入模式 (自定義)</option>
+              <optgroup label="我的班級">
+                {classes.map(cls => (
+                  <option key={cls.id} value={cls.id}>{cls.name}</option>
+                ))}
+              </optgroup>
+            </select>
+
             <div className="mt-2 text-xs text-slate-400">
               應到：{attendanceStats.expected}　實到：{attendanceStats.actual}
             </div>
           </div>
 
-        <div className="space-y-4 pb-20">
+          <div className="space-y-4 pb-20">
             {sidebarCards}
-		</div>
-		</div>
+          </div>
+        </div>
       </div>
 
-	  
+
       <button
         onClick={() => setIsSidebarOpen(!isSidebarOpen)}
         className="absolute bottom-15 left-0 z-100 -translate-y-1/2 bg-white dark:bg-slate-800 p-1 rounded-r-lg shadow-md border border-l-0 border-slate-200 dark:border-slate-700 text-slate-400 hover:text-blue-500 transition-all ease-in-out duration-500"
@@ -212,42 +210,33 @@ const ExamTool = () => {
           toggleAudio={toggleAudio}
           attendanceStats={attendanceStats}
           onOpenAttendance={() => {
-			if (isManualMode) setIsManualModalOpen(true);
-			else setIsAttendanceOpen(true);
-		  }}
+            if (isManualMode) setIsManualModalOpen(true);
+            else openModal(MODAL_ID.ATTENDANCE);
+          }}
           announcements={announcements}
         />
       </main>
 
-	  <ManualAttendanceModal 
-      isOpen={isManualModalOpen}
-      onClose={() => setIsManualModalOpen(false)}
-      data={manualData}
-      onSave={setManualData}
+      <ManualAttendanceModal
+        isOpen={isManualModalOpen}
+        onClose={() => setIsManualModalOpen(false)}
+        data={manualData}
+        onSave={setManualData}
       />
 
       <ExamControlDock
         onOpenSettings={() => setIsSettingsOpen(true)}
-        onExtend={handleExtend}        
-		onQuickExam={handleQuickExam}
+        onExtend={handleExtend}
+        onQuickExam={handleQuickExam}
         onStopQuickExam={handleStopQuickExam}
         isQuickExam={isQuickExam}
-		isTickerActive={announcements.active} 
+        isTickerActive={announcements.active}
         onToggleTicker={toggleAnnouncements}
-		isMuted={isMuted}
-		toggleMute={toggleMute}
+        isMuted={isMuted}
+        toggleMute={toggleMute}
       />
 
       {/* Modals */}
-      {isAttendanceOpen && currentClass && (
-        <AttendanceModal
-          isOpen={isAttendanceOpen}
-          onClose={() => setIsAttendanceOpen(false)}
-          students={currentClass.students || []}
-          attendanceRecords={currentClass.attendanceRecords || {}}
-          onSave={updateAttendance}
-        />
-      )}
 
       <ExamSettingsModal
         isOpen={isSettingsOpen}
@@ -259,11 +248,11 @@ const ExamTool = () => {
         announcements={announcements}
         setAnnouncements={setAnnouncements}
         uploadAudio={uploadAudio}
-		removeAudio={removeAudio}
+        removeAudio={removeAudio}
         audioFiles={audioFiles}
       />
 
-	  <QuickExamModal
+      <QuickExamModal
         isOpen={isQuickExamModalOpen}
         onClose={() => setIsQuickExamModalOpen(false)}
         onConfirm={(mins, title) => {
@@ -271,7 +260,6 @@ const ExamTool = () => {
         }}
       />
 
-      {dialogConfig && <DialogModal {...dialogConfig} onClose={closeDialog} />}
     </div>
   );
 };
