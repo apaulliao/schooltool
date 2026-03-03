@@ -23,8 +23,10 @@ dist-ssr
 *.sln
 *.sw?
 
-# Testing scripts
+# Testing scripts and AI agents
 test_puppeteer.*
+.agents/
+tatus
 
 # local env files
 .env
