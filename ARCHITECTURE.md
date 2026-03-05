@@ -172,6 +172,21 @@
     - **`ParentView.jsx`**：家長專屬唯讀畫面 (公開無須登入)，透過 URL 參數過濾並顯示教師指定的日誌內容，支援全文響應式文字縮放。
     - **`components/LogDetailPane.jsx`**：教師端日誌詳細閱讀區，包含唯讀展示、縮放以及刪除/編輯入口。
 
+### 6. ContactBook (智慧聯絡簿)
+
+- **`ContactBook.jsx`**：聯絡簿主介面，包含月曆側邊欄、模板面板與黑板編輯區。支援橫排/直排模式切換、文字縮放、大屏投影模式與全域鍵盤快捷鍵 (Ctrl+Z/Y/P, Escape)。
+- **components/**
+    - **`ContactBookEditor.jsx`**：黑板風格編輯區，支援 `@dnd-kit` 拖曳排序（GripVertical 手柄）、行內編輯、重要項目紅色標記與大屏打勾互動。
+    - **`HistoryCalendar.jsx`**：迷你月曆元件（嵌入側邊欄），顯示當月日曆格、有紀錄日期以藍點標記、今日 ring 高亮，支援左右切月份瀏覽。
+    - **`QuickTemplatePanel.jsx`**：右側快速模板面板，支援預設模板與自訂模板的一鍵插入、新增與隱藏管理。
+    - **`PrintPreviewModal.jsx`**：列印與匯出預覽彈窗。支援一頁 1/2/4/8 份、直式/橫式排版、黑板背景保留切換、單圖下載（html-to-image）、Web Share API 分享（含剪貼簿 fallback）及原生列印（Portal 渲染至 body）。
+- **store/**
+    - **`useContactBookStore.js`** (Zustand)：聯絡簿核心狀態管理，內建 Undo/Redo 堆疊（最多 30 步）、自動儲存至 IndexedDB、歷史日期載入與模板 CRUD。
+- **services/**
+    - **`contactBookDatabase.js`**：IndexedDB 資料存取層，處理聯絡簿日誌與自訂模板的持久化。
+- **utils/**
+    - **`dateUtils.js`**：民國年日期格式化工具。
+
 ## 📂 src/utils (工具函式庫)
 
 - **`backupService.js`**：系統備份與還原服務。

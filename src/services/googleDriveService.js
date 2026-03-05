@@ -10,7 +10,8 @@ const ROOT_FOLDER_NAME = '智慧教室儀表板';
 const EXAM_FOLDER_NAME = '考卷派送檔';
 const CASELOG_FOLDER_NAME = '個案日誌檔'; // 🌟 新增個案日誌資料夾
 const CASELOG_ATTACHMENTS_FOLDER_NAME = '個案日誌附件檔'; // 🌟 新增：專門存放上傳照片的資料夾
-const BACKUP_FILE_NAME = '智慧教室儀表板設定檔.json';
+const CONTACTBOOK_FOLDER_NAME = '聯絡簿紀錄'; // 🌟 新增聯絡簿資料夾
+const BACKUP_FILE_NAME = 'ClassroomOS_CloudSync.json';
 
 /**
  * 輔助函式：檢查 Token 是否過期或 API 異常
@@ -85,7 +86,8 @@ const findFileInFolder = async (token, fileName, folderId) => {
 export const syncToCloud = async (token, fileName, jsonData) => {
   try {
     const rootFolderId = await getOrCreateFolder(token, ROOT_FOLDER_NAME);
-    let file = await findFileInFolder(token, BACKUP_FILE_NAME, rootFolderId);
+    const targetName = fileName || BACKUP_FILE_NAME;
+    let file = await findFileInFolder(token, targetName, rootFolderId);
 
     if (!file) {
       const createRes = await fetch(DRIVE_API, {
@@ -95,7 +97,7 @@ export const syncToCloud = async (token, fileName, jsonData) => {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          name: BACKUP_FILE_NAME,
+          name: targetName,
           mimeType: 'application/json',
           parents: [rootFolderId]
         })
@@ -121,10 +123,11 @@ export const syncToCloud = async (token, fileName, jsonData) => {
   }
 };
 
-export const fetchFromCloud = async (token) => {
+export const fetchFromCloud = async (token, fileName) => {
   try {
     const rootFolderId = await getOrCreateFolder(token, ROOT_FOLDER_NAME);
-    const file = await findFileInFolder(token, BACKUP_FILE_NAME, rootFolderId);
+    const targetName = fileName || BACKUP_FILE_NAME;
+    const file = await findFileInFolder(token, targetName, rootFolderId);
     if (!file) return null;
 
     const res = await fetch(`${DRIVE_API}/${file.id}?alt=media`, {
@@ -220,10 +223,10 @@ export const downloadSharedExam = async (shareId, apiKey) => {
   }
 };
 
-export const getCloudBackupTime = async (token) => {
+export const getCloudBackupTime = async (token, fileName = BACKUP_FILE_NAME) => {
   try {
     const rootFolderId = await getOrCreateFolder(token, ROOT_FOLDER_NAME);
-    const file = await findFileInFolder(token, BACKUP_FILE_NAME, rootFolderId);
+    const file = await findFileInFolder(token, fileName, rootFolderId);
     return file ? file.modifiedTime : null;
   } catch (error) {
     if (error.message === 'TokenExpired') throw error;
@@ -703,3 +706,71 @@ export const deleteCloudFolderByName = async (token, folderName, parentFolderNam
     throw error; // 視需求決定是否要拋出
   }
 };
+
+// ==========================================
+// 模組 3：ContactBook 聯絡簿紀錄 (新增功能)
+// ==========================================
+
+export const syncContactBookToCloud = async (token, yearMonth, logsData) => {
+  try {
+    const rootId = await getOrCreateFolder(token, ROOT_FOLDER_NAME);
+    const cbFolderId = await getOrCreateFolder(token, CONTACTBOOK_FOLDER_NAME, rootId);
+
+    const fileName = `${yearMonth}_ContactBook.json`;
+    let file = await findFileInFolder(token, fileName, cbFolderId);
+
+    if (!file) {
+      const createRes = await fetch(DRIVE_API, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name: fileName,
+          mimeType: 'application/json',
+          parents: [cbFolderId]
+        })
+      });
+      await checkResponse(createRes);
+      file = await createRes.json();
+    }
+
+    const uploadRes = await fetch(`${UPLOAD_API}/${file.id}?uploadType=media`, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(logsData)
+    });
+    await checkResponse(uploadRes);
+
+    return true;
+  } catch (error) {
+    console.error('聯絡簿雲端備份失敗:', error);
+    throw error;
+  }
+};
+
+export const fetchContactBookFromCloud = async (token, yearMonth) => {
+  try {
+    const rootId = await getOrCreateFolder(token, ROOT_FOLDER_NAME);
+    const cbFolderId = await getOrCreateFolder(token, CONTACTBOOK_FOLDER_NAME, rootId);
+
+    const fileName = `${yearMonth}_ContactBook.json`;
+    const file = await findFileInFolder(token, fileName, cbFolderId);
+
+    if (!file) return null;
+
+    const res = await fetch(`${DRIVE_API}/${file.id}?alt=media`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    await checkResponse(res);
+    return await res.json();
+  } catch (error) {
+    console.error('讀取聯絡簿雲端備份失敗:', error);
+    throw error;
+  }
+};
+

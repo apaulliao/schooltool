@@ -1,20 +1,19 @@
-// src/utils/backupService.js
-import { getAllExamMetas, getExamById, saveExam } from './examDatabase'; // 🌟 引入 IndexedDB 操作
+import { getAllItems, saveItem, STORES } from './idbService'; // 🌟 統一使用新版 idbService
 
 const SYSTEM_KEYS = [
     // --- Dashboard ---
-    'timeSlots', 'schedule', 'subjectHints', 'dayTypes', 'is24Hour', 
-    'visibleButtons', 'weatherConfig', 'customPresets', 'teacherMessage', 
+    'timeSlots', 'schedule', 'subjectHints', 'dayTypes', 'is24Hour',
+    'visibleButtons', 'weatherConfig', 'customPresets', 'teacherMessage',
     'showSidebar', 'isSystemSoundEnabled',
     // --- Manager ---
-    'schooltool_classes', 
-    'schooltool_current_class_id', 
-	// --- ExamTool ---
-    'exam_schedule', 'exam_tts_rules', 'exam_announcements', 
-    'exam_is_manual_mode', 'exam_manual_attendance',  
+    'schooltool_classes',
+    'schooltool_current_class_id',
+    // --- ExamTool ---
+    'exam_schedule', 'exam_tts_rules', 'exam_announcements',
+    'exam_is_manual_mode', 'exam_manual_attendance',
     // --- 其他工具 ---
-    'lottery_history', 'timer_presets', 'tts_custom_dict' ,
-	// --- [NEW] OS / Zhuyin System ---
+    'lottery_history', 'timer_presets', 'tts_custom_dict',
+    // --- [NEW] OS / Zhuyin System ---
     'user_custom_polyphones',       // 自訂破音字字典
     'classroom_os_zhuyin_mode',     // 全域注音模式開關狀態
     'os_launcher_pos'               // Launcher 位置 (順便補上)
@@ -26,29 +25,31 @@ const SYSTEM_KEYS = [
 export const generateSystemPayload = async () => {
     const backupData = {
         localStorage: {},
-        indexedDB: { 
-			exams: [],  //考卷資料
-			classes: [] //學生資料
-			} 
+        indexedDB: {
+            exams: [],  //考卷資料
+            classes: [] //學生資料
+        }
     };
-    
+
     // 1. 收集 LocalStorage 資料
     SYSTEM_KEYS.forEach(key => {
         const item = localStorage.getItem(key);
         if (item !== null) {
-            try { 
-                backupData.localStorage[key] = JSON.parse(item); 
-            } catch (e) { 
+            try {
+                backupData.localStorage[key] = JSON.parse(item);
+            } catch (e) {
                 // 🚀 關鍵修復：如果解析失敗 (例如純字串 "default_class")，就直接把原始字串存起來
-                backupData.localStorage[key] = item; 
+                backupData.localStorage[key] = item;
             }
         }
     });
 
-    // 2. 收集 IndexedDB 考卷資料 (報讀助理的考卷)
+    // 2. 收集 IndexedDB 資料 (考卷、班級、聯絡簿)
     try {
         backupData.indexedDB.exams = await getAllItems(STORES.EXAMS);
-        backupData.indexedDB.classes = await getAllItems(STORES.CLASSES); // 👈 抓班級
+        backupData.indexedDB.classes = await getAllItems(STORES.CLASSES);
+        backupData.indexedDB.contactLogs = await getAllItems(STORES.CONTACT_BOOK_LOGS);
+        backupData.indexedDB.contactTemplates = await getAllItems(STORES.CONTACT_BOOK_TEMPLATES);
     } catch (e) {
         console.warn('IDB Backup Failed', e);
     }
@@ -82,13 +83,19 @@ export const restoreFromPayload = async (payload) => {
         });
     }
 
-    // 2. 還原 IndexedDB 考卷資料
-   if (idbData) {
+    // 2. 還原 IndexedDB 資料
+    if (idbData) {
         if (idbData.exams) {
             for (const exam of idbData.exams) await saveItem(STORES.EXAMS, exam);
         }
-        if (idbData.classes) { // 👈 還原班級
+        if (idbData.classes) {
             for (const cls of idbData.classes) await saveItem(STORES.CLASSES, cls);
+        }
+        if (idbData.contactLogs) {
+            for (const log of idbData.contactLogs) await saveItem(STORES.CONTACT_BOOK_LOGS, log);
+        }
+        if (idbData.contactTemplates) {
+            for (const tpl of idbData.contactTemplates) await saveItem(STORES.CONTACT_BOOK_TEMPLATES, tpl);
         }
     }
     return true;
@@ -99,16 +106,16 @@ export const restoreFromPayload = async (payload) => {
 // ==========================================
 
 export const exportSystemData = async () => {
-    const payload = await generateSystemPayload(); 
+    const payload = await generateSystemPayload();
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    
+
     // 🌟 修改：使用指定的繁體中文檔名格式
     const dateString = new Date().toISOString().slice(0, 10);
     a.download = `智慧教室儀錶板設定備份_${dateString}.json`;
-    
+
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -142,14 +149,18 @@ export const resetSystem = async () => {
         localStorage.removeItem(key);
     });
 
-    // 2. 清除 IndexedDB (刪除整個資料庫)
-    // 假設您的 DB 名稱是 'ExamDatabase' (請確認 examDatabase.js 中的名稱)
-    const DB_NAME = 'ExamDatabase'; 
-    const deleteRequest = indexedDB.deleteDatabase(DB_NAME);
+    // 2. 清除 IndexedDB (刪除所有相關資料庫)
+    const DB_NAMES = ['ClassroomDB', 'ExamReaderDB'];
 
-    return new Promise((resolve, reject) => {
-        deleteRequest.onsuccess = () => resolve(true);
-        deleteRequest.onerror = () => reject(new Error('無法刪除資料庫'));
-        deleteRequest.onblocked = () => console.warn('資料庫刪除被阻擋，請關閉其他分頁');
+    const deletePromises = DB_NAMES.map(dbName => {
+        return new Promise((resolve) => {
+            const req = indexedDB.deleteDatabase(dbName);
+            req.onsuccess = () => resolve(true);
+            req.onerror = () => resolve(false);
+            req.onblocked = () => resolve(false);
+        });
     });
+
+    await Promise.all(deletePromises);
+    return true;
 };

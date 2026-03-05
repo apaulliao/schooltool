@@ -1,6 +1,24 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Plus, Trash2, GripVertical, Settings, Save, AlertCircle, Copy, GripHorizontal, Check, X, Loader2 } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Plus, Trash2, GripVertical, Save, Copy, Check, X, Loader2 } from 'lucide-react';
 import { UI_THEME } from '../../../constants';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragOverlay,
+  defaultDropAnimationSideEffects,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 // --- 常數定義 ---
 export const BLOCK_TYPES = [
@@ -12,28 +30,91 @@ export const BLOCK_TYPES = [
   { type: 'image', label: '圖片上傳', icon: '🖼️', canAddOptions: false },
 ];
 
+// --- 排序區塊組件 ---
+const SortableBlock = ({
+  block,
+  isFocused,
+  setFocusedBlockId,
+  renderFocusedCard,
+  renderPreviewCard
+}) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: block.id,
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 50 : (isFocused ? 20 : 1),
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`
+        group relative flex transition-all duration-200
+        border-l-4 rounded-xl shadow-sm bg-white dark:bg-slate-800
+        ${isFocused
+          ? 'border-l-blue-500 shadow-md py-6 pl-12 pr-6 my-2'
+          : 'border-l-transparent border border-slate-200 dark:border-slate-700 py-4 pl-12 pr-6 hover:border-l-slate-300 dark:hover:border-l-slate-600'
+        }
+        ${isDragging ? 'opacity-40 scale-[0.98]' : ''}
+      `}
+    >
+      {/* 左側把手區塊 */}
+      <div
+        {...attributes}
+        {...listeners}
+        className="absolute left-0 top-0 bottom-0 w-10 flex items-center justify-center cursor-grab active:cursor-grabbing text-slate-300 hover:text-blue-500 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-l-xl transition-all border-r border-transparent group-hover:border-slate-100 dark:group-hover:border-slate-700 z-30"
+        title="拖曳排序"
+      >
+        <GripVertical size={20} />
+      </div>
+
+      <div
+        className="flex-1 w-full cursor-pointer"
+        onClick={() => setFocusedBlockId(block.id)}
+      >
+        {isFocused ? renderFocusedCard(block) : renderPreviewCard(block)}
+      </div>
+    </div>
+  );
+};
+
 export default function TemplateEditor({ template = [], onSave, onChange, isSaving }) {
   const [blocks, setBlocks] = useState(() => Array.isArray(template) ? template : []);
   const [focusedBlockId, setFocusedBlockId] = useState(null);
-  const [draggableBlockId, setDraggableBlockId] = useState(null);
+  const [activeId, setActiveId] = useState(null);
 
-  // 當外部傳入新的 template (例如切換學生、套用公版) 時，重新同步
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
   useEffect(() => {
     const newBlocks = Array.isArray(template) ? [...template] : [];
     setBlocks(newBlocks);
-    setFocusedBlockId(null); // 切換時自動取消焦點，避免舊 ID 殘留
+    setFocusedBlockId(null);
     if (onChange) onChange(newBlocks);
   }, [JSON.stringify(template)]);
 
-  // 當內部編輯 blocks 改變時，通知外部 (讓 TeacherDashboard 用 useRef 紀錄最新狀態，供 TemplateManager 儲存公版時使用)
   useEffect(() => {
     if (onChange) onChange(blocks);
   }, [blocks, onChange]);
-
-  // 拖曳狀態
-  const dragItem = useRef(null);
-  const dragOverItem = useRef(null);
-  const [dragOverIndex, setDragOverIndex] = useState(null); // 🌟 新增：用於即時視覺回饋
 
   // --- 基礎操作 ---
   const handleAddBlock = (type) => {
@@ -45,7 +126,7 @@ export default function TemplateEditor({ template = [], onSave, onChange, isSavi
       ...(type === 'rating' ? { max: 5 } : {})
     };
     setBlocks(prev => [...prev, newBlock]);
-    setFocusedBlockId(newBlock.id); // 自動 Focus 新積木
+    setFocusedBlockId(newBlock.id);
   };
 
   const handleDeleteBlock = (e, id) => {
@@ -72,7 +153,6 @@ export default function TemplateEditor({ template = [], onSave, onChange, isSavi
     setBlocks(prev => prev.map(b => b.id === id ? { ...b, [field]: value } : b));
   };
 
-  // --- 選項編輯專屬操作 (Checkbox, Radio, Select) ---
   const handleUpdateOption = (blockId, optionIndex, newValue) => {
     setBlocks(prev => prev.map(b => {
       if (b.id !== blockId) return b;
@@ -93,51 +173,35 @@ export default function TemplateEditor({ template = [], onSave, onChange, isSavi
     setBlocks(prev => prev.map(b => {
       if (b.id !== blockId) return b;
       const newOptions = b.options.filter((_, idx) => idx !== optionIndex);
-      return { ...b, options: newOptions.length ? newOptions : ['選項 1'] }; // 至少留一個
+      return { ...b, options: newOptions.length ? newOptions : ['選項 1'] };
     }));
   };
 
-  // --- 拖曳排序 ---
-  const handleDragStart = (e, index) => {
-    dragItem.current = index;
-    // 加上這行避免拖曳時觸發 Focus
+  // --- 拖曳處理 ---
+  const handleDragStart = (event) => {
+    setActiveId(event.active.id);
     setFocusedBlockId(null);
-    e.dataTransfer.effectAllowed = "move";
-    setTimeout(() => {
-      if (e.target) e.target.classList.add('opacity-50');
-    }, 0);
   };
 
-  const handleDragEnter = (e, index) => {
-    dragOverItem.current = index;
-    setDragOverIndex(index); // 即時更新狀態以觸發重繪
-  };
-
-  const handleDragEnd = (e) => {
-    if (e.target) e.target.classList.remove('opacity-50');
-
-    if (dragItem.current !== null && dragOverItem.current !== null && dragItem.current !== dragOverItem.current) {
-      const newBlocks = [...blocks];
-      const draggedBlock = newBlocks[dragItem.current];
-      newBlocks.splice(dragItem.current, 1);
-      newBlocks.splice(dragOverItem.current, 0, draggedBlock);
-      setBlocks(newBlocks);
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      setBlocks((items) => {
+        const oldIndex = items.findIndex((i) => i.id === active.id);
+        const newIndex = items.findIndex((i) => i.id === over.id);
+        return arrayMove(items, oldIndex, newIndex);
+      });
     }
-
-    dragItem.current = null;
-    dragOverItem.current = null;
-    setDragOverIndex(null); // 清理狀態
+    setActiveId(null);
   };
 
-  // --- 本次元件內部 Render 輔助 ---
+  const activeBlock = useMemo(() => blocks.find(b => b.id === activeId), [activeId, blocks]);
 
-  // 渲染正在 Focus 的卡片
+  // --- Render 輔助 ---
   const renderFocusedCard = (block) => {
     const isOptionsType = ['checkbox', 'radio', 'select'].includes(block.type);
-
     return (
       <div className="flex flex-col gap-4">
-        {/* 標題與類型 */}
         <div className="flex flex-col md:flex-row gap-4">
           <input
             autoFocus
@@ -154,12 +218,10 @@ export default function TemplateEditor({ template = [], onSave, onChange, isSavi
           </div>
         </div>
 
-        {/* 選項編輯區 */}
         {isOptionsType && (
           <div className="flex flex-col gap-2 mt-2">
             {block.options?.map((opt, idx) => (
               <div key={idx} className="flex items-center gap-3">
-                {/* 根據不同類型顯示不同圖示 */}
                 {block.type === 'checkbox' && <div className="w-4 h-4 rounded border-2 border-slate-300 dark:border-slate-600 flex-shrink-0" />}
                 {block.type === 'radio' && <div className="w-4 h-4 rounded-full border-2 border-slate-300 dark:border-slate-600 flex-shrink-0" />}
                 {block.type === 'select' && <div className="text-slate-400 flex-shrink-0 text-sm font-bold">{idx + 1}.</div>}
@@ -198,7 +260,6 @@ export default function TemplateEditor({ template = [], onSave, onChange, isSavi
           </div>
         )}
 
-        {/* 底部工具列 (複製/刪除) */}
         <div className="flex justify-end items-center gap-2 pt-4 mt-2 border-t border-slate-100 dark:border-slate-800">
           <button
             onClick={(e) => handleDuplicateBlock(e, block)}
@@ -219,7 +280,6 @@ export default function TemplateEditor({ template = [], onSave, onChange, isSavi
     );
   };
 
-  // 渲染預覽狀態的卡片 (Mockup)
   const renderPreviewCard = (block) => {
     return (
       <div className="flex flex-col gap-3 opacity-90">
@@ -229,7 +289,6 @@ export default function TemplateEditor({ template = [], onSave, onChange, isSavi
           {block.type === 'image' && <span className="ml-2 text-xs font-normal text-slate-400">(圖片題)</span>}
         </div>
 
-        {/* 假裝自己是真實元件 */}
         {block.type === 'rating' && (
           <div className="flex gap-2">
             {[1, 2, 3, 4, 5].map(v => (
@@ -280,77 +339,70 @@ export default function TemplateEditor({ template = [], onSave, onChange, isSavi
     );
   }
 
-  // 背景點擊時取消 focus
   const handleBgClick = (e) => {
     if (e.target.id === 'editor-canvas') {
       setFocusedBlockId(null);
     }
   }
 
+  const dropAnimation = {
+    sideEffects: defaultDropAnimationSideEffects({
+      styles: {
+        active: {
+          opacity: '0.5',
+        },
+      },
+    }),
+  };
+
   return (
     <div className={`flex flex-col min-h-full pb-32`}>
-      {/* 畫布區 */}
-      <div
-        id="editor-canvas"
-        className="flex flex-col gap-4 max-w-3xl mx-auto w-full px-4 pt-6"
-        onClick={handleBgClick}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
       >
-        {blocks.map((block, index) => {
-          const isFocused = focusedBlockId === block.id;
-          const isDropTarget = dragOverIndex === index && dragItem.current !== index; // 是不是正在被拖曳跨越的目標
+        <div
+          id="editor-canvas"
+          className="flex flex-col gap-4 max-w-3xl mx-auto w-full px-4 pt-6"
+          onClick={handleBgClick}
+        >
+          <SortableContext items={blocks.map(b => b.id)} strategy={verticalListSortingStrategy}>
+            {blocks.map((block, index) => (
+              <SortableBlock
+                key={block.id}
+                block={block}
+                index={index}
+                isFocused={focusedBlockId === block.id}
+                setFocusedBlockId={setFocusedBlockId}
+                renderFocusedCard={renderFocusedCard}
+                renderPreviewCard={renderPreviewCard}
+              />
+            ))}
+          </SortableContext>
 
-          return (
+          {blocks.length === 0 && (
             <div
-              key={block.id}
-              draggable={!isFocused || draggableBlockId === block.id}
-              onDragStart={(e) => handleDragStart(e, index)}
-              onDragEnter={(e) => handleDragEnter(e, index)}
-              onDragEnd={handleDragEnd}
-              onDragOver={(e) => e.preventDefault()}
-              onClick={() => setFocusedBlockId(block.id)}
-              className={`
-                relative flex transition-all duration-200 cursor-pointer
-                border-l-4 rounded-xl shadow-sm bg-white dark:bg-slate-800
-                ${isFocused
-                  ? 'border-l-blue-500 shadow-md py-6 px-6 my-2 cursor-default' // Focus 樣式：左側藍線、陰影變深、內距變大、上下推開
-                  : 'border-l-transparent border border-slate-200 dark:border-slate-700 py-4 px-6 hover:border-l-slate-300 dark:hover:border-l-slate-600' // Preview 樣式
-                }
-                ${isDropTarget ? 'scale-[1.02] ring-2 ring-blue-500 ring-offset-2 z-10 bg-blue-50 dark:bg-blue-900/30' : ''}
-              `}
+              className="text-center p-12 my-8 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-2xl cursor-pointer hover:border-blue-400 hover:bg-blue-50/50 dark:hover:bg-blue-900/20 transition-all font-bold text-slate-500"
+              onClick={() => handleAddBlock('text')}
             >
-              {/* 中央大握把 (只在滑鼠滑入或 focus 時顯示) */}
-              <div
-                onMouseEnter={() => setDraggableBlockId(block.id)}
-                onMouseLeave={() => setDraggableBlockId(null)}
-                className={`
-                 absolute left-1/2 -top-3 -translate-x-1/2 cursor-grab active:cursor-grabbing text-slate-300 hover:text-blue-500 bg-white dark:bg-slate-800 px-2 rounded-full shadow-sm border border-slate-200 dark:border-slate-700
-                 ${isFocused ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity
-               `}>
-                <GripHorizontal size={16} />
-              </div>
-
-              {/* 內容區塊分配 */}
-              <div className="flex-1 w-full">
-                {isFocused ? renderFocusedCard(block) : renderPreviewCard(block)}
-              </div>
+              目前學生版面是空的。點選右下角的按鈕新增欄位，或是從最上方的功能列套用既有公版。
             </div>
-          );
-        })}
+          )}
+        </div>
 
-        {blocks.length === 0 && (
-          <div
-            className="text-center p-12 my-8 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-2xl cursor-pointer hover:border-blue-400 hover:bg-blue-50/50 dark:hover:bg-blue-900/20 transition-all font-bold text-slate-500"
-            onClick={() => handleAddBlock('text')}
-          >
-            目前學生版面是空的。點選右下角的按鈕新增欄位，或是從最上方的功能列套用既有公版。
-          </div>
-        )}
-      </div>
+        <DragOverlay dropAnimation={dropAnimation}>
+          {activeId && activeBlock ? (
+            <div className="border-l-4 border-l-blue-500 rounded-xl shadow-2xl bg-white dark:bg-slate-800 py-4 px-6 opacity-90 scale-105 pointer-events-none border border-slate-200 dark:border-slate-700">
+              {renderPreviewCard(activeBlock)}
+            </div>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
 
       {/* 底部浮動區(儲存 + 新增工具列) */}
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 z-30 animate-in slide-in-from-bottom-6 z-50">
-
-        {/* 新增工具箱 */}
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 z-50 animate-in slide-in-from-bottom-6">
         <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-md shadow-xl border border-slate-200 dark:border-slate-700 rounded-full px-4 py-2 flex items-center gap-1 overflow-x-auto max-w-[90vw] md:max-w-none">
           {BLOCK_TYPES.map(bt => (
             <button
@@ -365,7 +417,6 @@ export default function TemplateEditor({ template = [], onSave, onChange, isSavi
           ))}
         </div>
 
-        {/* 儲存按鈕 */}
         <button
           onClick={() => onSave(blocks)}
           disabled={isSaving}

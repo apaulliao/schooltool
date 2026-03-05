@@ -9,6 +9,7 @@ import { useCaseLog } from '../context/CaseLogContext';
 import { useModalContext } from '../../../context/ModalContext';
 import DialogModal from '../../../components/common/DialogModal';
 import TemplateEditor from '../components/TemplateEditor';
+import TemplateManager from '../components/TemplateManager'; // 🌟 新增：公版管理組件
 import LogForm from '../components/LogForm';
 import { useAuth } from '../../../context/AuthContext';
 import ShareManagerModal from './components/ShareManagerModal'; // 🌟 新增：共編管理 Dialog
@@ -52,6 +53,15 @@ export default function TeacherDashboard() {
   const [searchQuery, setSearchQuery] = useState('');
   const [mobileActivePane, setMobileActivePane] = useState('list');
   const [pendingAuthRetry, setPendingAuthRetry] = useState(null);
+
+  // 🌟 新增：用於追蹤編輯器中最新的積木狀態，供存為公版時使用
+  const currentBlocksRef = React.useRef([]);
+  const {
+    globalTemplates,
+    saveGlobalTemplate,
+    applyGlobalTemplate,
+    deleteGlobalTemplate
+  } = useCaseLog(setAlertDialog);
 
   // 🌟 3. 新增自動重試 Effect：偵測到新 Token 時自動執行
   useEffect(() => {
@@ -507,14 +517,42 @@ export default function TeacherDashboard() {
           {activeStudent && (
             <div className="flex-1 flex overflow-hidden">
               {activeTab === 'template' ? (
-                <div className="flex-1 overflow-y-auto p-6">
-                  <TemplateEditor
-                    initialTemplate={activeTemplate}
-                    onSave={async (newTemplate) => {
-                      await saveTemplate(newTemplate);
-                      setActiveTab('logs');
+                <div className="flex-1 flex flex-col overflow-hidden">
+                  {/* 🌟 新增：公版管理器 */}
+                  <TemplateManager
+                    globalTemplates={globalTemplates}
+                    getCurrentTemplate={() => currentBlocksRef.current}
+                    onSaveAsGlobal={saveGlobalTemplate}
+                    onApplyGlobal={async (tplId) => {
+                      await applyGlobalTemplate(activeStudentId, tplId);
                     }}
+                    onDeleteGlobal={deleteGlobalTemplate}
+                    isSyncing={isSyncing}
                   />
+
+                  <div className="flex-1 overflow-y-auto p-6">
+                    <TemplateEditor
+                      template={activeTemplate} // 🌟 修正：從 initialTemplate 改為 template
+                      onChange={(blocks) => {
+                        currentBlocksRef.current = blocks;
+                      }}
+                      onSave={async (newTemplate) => {
+                        await saveTemplate(newTemplate);
+                        setAlertDialog({
+                          isOpen: true,
+                          title: '儲存成功',
+                          message: '已儲存此學生的客製化版面配置。',
+                          type: 'alert',
+                          variant: 'success',
+                          onConfirm: () => {
+                            setAlertDialog(prev => ({ ...prev, isOpen: false }));
+                            setActiveTab('logs');
+                          }
+                        });
+                      }}
+                      isSaving={isSyncing}
+                    />
+                  </div>
                 </div>
               ) : (
                 <>

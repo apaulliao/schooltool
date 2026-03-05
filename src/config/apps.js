@@ -1,6 +1,6 @@
 // src/config/apps.js
 import { lazy } from 'react';
-import { Monitor, ClipboardCheck, Users, Headphones, Clipboard } from 'lucide-react';
+import { Monitor, ClipboardCheck, Users, Headphones, Clipboard, BookOpen } from 'lucide-react';
 
 // Lazy Load 組件
 // 請根據您的實際檔案結構確認路徑，這裡假設是在 src/ 下
@@ -9,6 +9,7 @@ const ExamTool = lazy(() => import('../pages/ExamTool/ExamTool.jsx'));
 const Manager = lazy(() => import('../pages/Manager/Manager.jsx'));
 const ExamReader = lazy(() => import('../pages/ExamReader/ExamReader.jsx'));
 const CaseLog = lazy(() => import('../pages/CaseLog/CaseLog.jsx'));
+const ContactBook = lazy(() => import('../pages/ContactBook/ContactBook.jsx'));
 
 export const APPS_CONFIG = [
   {
@@ -34,6 +35,15 @@ export const APPS_CONFIG = [
     icon: Users,
     color: 'bg-amber-500',
     component: Manager
+  },
+  {
+    id: 'contactbook',
+    name: '聯絡簿',
+    icon: BookOpen,
+    path: '/contactbook',
+    description: '班級作業聯絡簿發布與存檔',
+    color: 'bg-indigo-500',
+    component: ContactBook
   },
   {
     id: 'reader',

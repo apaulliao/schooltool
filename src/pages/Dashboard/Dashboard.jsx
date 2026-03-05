@@ -43,6 +43,7 @@ import TimerWidget from '../../components/common/widgets/TimerWidget';
 import LotteryWidget from '../../components/common/widgets/LotteryWidget';
 import SoundBoard from '../../components/common/widgets/SoundBoard';
 import WeatherWidget from './components/WeatherWidget';
+import DashboardContactBookWidget from './components/DashboardContactBookWidget';
 
 const ICON_MAP = {
   Megaphone, Users, BookOpen, Eye, Bell, MessageSquare,
@@ -93,6 +94,7 @@ const Dashboard = ({ theme, cycleTheme }) => {
 
   // Widget States
   const [toolsState, setToolsState] = useState({ timer: false, lottery: false, sound: false });
+  const [isContactBookOpen, setIsContactBookOpen] = useState(false);
 
   const {
     now, statusMode, currentSlot, nextSlot, progress, secondsRemaining, activeTimeSlots
@@ -240,13 +242,33 @@ const Dashboard = ({ theme, cycleTheme }) => {
   const closeMessageInput = useCallback(() => setIsEditingMessage(false), []);
 
   const prevStatusModeRef = useRef(statusMode);
+  // 處理狀態變更事件 (如廣播取消、聯絡簿彈窗)
   useEffect(() => {
+    // 進入上課模式時關閉跑馬燈
     if (prevStatusModeRef.current !== 'class' && statusMode === 'class') {
       if (specialStatus?.mode === 'marquee') {
         setSpecialStatus(null);
         tts.cancel();
       }
+      setIsContactBookOpen(false); // 上課自動關閉聯絡簿
     }
+
+    // 剛下課時自動彈出聯絡簿
+    if (prevStatusModeRef.current === 'class' && statusMode === 'break') {
+      const today = new Date().toISOString().split('T')[0];
+      const dontShow = localStorage.getItem(`cb_dont_show_${today}`);
+      const autoRemindEnabled = localStorage.getItem('cb_auto_remind_enabled') !== 'false';
+
+      if (dontShow !== 'true' && autoRemindEnabled) {
+        setIsContactBookOpen(true);
+      }
+    }
+
+    // 預備鈴響時自動關閉聯絡簿
+    if (prevStatusModeRef.current === 'break' && statusMode === 'pre-bell') {
+      setIsContactBookOpen(false);
+    }
+
     prevStatusModeRef.current = statusMode;
   }, [statusMode, specialStatus, tts]);
 
@@ -274,6 +296,8 @@ const Dashboard = ({ theme, cycleTheme }) => {
       // 新增：Ghost Mode 參數
       ghostMode={isGhost}
       onToggleEco={() => setIsManualEco(false)} // 傳入退出函數
+      // 聯絡簿控制
+      onOpenContactBook={() => setIsContactBookOpen(true)}
     />
   );
 
@@ -432,6 +456,14 @@ const Dashboard = ({ theme, cycleTheme }) => {
         setCustomPresets={setCustomPresets}
       />
       <MessageInput isOpen={isEditingMessage} onClose={closeMessageInput} message={teacherMessage} setMessage={setTeacherMessage} />
+
+      {/* 聯絡簿 Widget */}
+      <DashboardContactBookWidget
+        isOpen={isContactBookOpen}
+        onClose={() => setIsContactBookOpen(false)}
+        isGlobalZhuyin={isGlobalZhuyin}
+        statusMode={statusMode}
+      />
     </div>
   );
 };
