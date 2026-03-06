@@ -111,7 +111,7 @@ const LotteryWidget = ({ isOpen, onClose }) => {
       isOpen={isOpen}
       onClose={onClose}
       icon={Dices}
-      initialPosition={{ x: 320, y: 500 }}
+      initialPosition={{ x: 20, y: 150 }}
     >
       <div className="flex flex-col gap-4">
         {/* 班級選擇器 */}
