@@ -131,7 +131,7 @@ const TimerWidget = ({ isOpen, onClose }) => {
                 relative group cursor-pointer tabular-nums leading-none tracking-tight font-black font-mono select-none transition-all
                 ${isFull ? 'text-[25vw] text-white drop-shadow-2xl' : 'text-6xl text-slate-800 dark:text-white'}
                 ${isRinging ? 'animate-bounce text-red-100' : ''}
-                ${timeLeft <= 10 && mode === 'timer' && isActive ? 'text-red-500 scale-110' : ''} // ★ 增加視覺提示：最後10秒變紅放大
+                ${timeLeft <= 10 && mode === 'timer' && isActive ? 'text-red-500 scale-110' : ''}
 `}
         onClick={() => {
           if (!isActive && !isRinging) {

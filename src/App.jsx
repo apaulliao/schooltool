@@ -108,7 +108,8 @@ const ClassroomOS = () => {
             border border-transparent hover:border-white/20
             transition-all duration-300 ease-out
             group hover:scale-105 hover:shadow-xl
-            focus-visible:ring-4 focus-visible:ring-indigo-500/50 focus-visible:outline-none
+            focus-visible:ring-4 focus-visible:ring-indigo-500/50 focus-visible:outline-none 
+            print:hidden
         `}
           aria-label="開啟系統選單"
           aria-haspopup="dialog"

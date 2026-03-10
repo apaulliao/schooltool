@@ -43,8 +43,8 @@ const ManagementTab = ({
   const { openModal, openDialog, closeDialog } = useModalContext();
 
   const importTextRef = useRef(null);
-  const todayDate = new Date().toLocaleDateString('en-CA');
-  const currentAttendanceStatus = currentClass?.attendanceRecords?.[todayDate] || {};
+  const todayDate = React.useMemo(() => new Date().toLocaleDateString('en-CA'), []);
+  const currentAttendanceStatus = React.useMemo(() => currentClass?.attendanceRecords?.[todayDate] || {}, [currentClass, todayDate]);
 
   const handleDragOver = (e) => {
     e.preventDefault();

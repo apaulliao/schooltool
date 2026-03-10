@@ -11,6 +11,7 @@ const DraggableWidget = ({
   width = "w-72"
 }) => {
   const [position, setPosition] = useState(initialPosition);
+  const tempPosition = useRef(initialPosition);
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [isMinimized, setIsMinimized] = useState(false);
@@ -33,14 +34,17 @@ const DraggableWidget = ({
         const newX = e.clientX - dragOffset.x;
         const newY = e.clientY - dragOffset.y;
 
-        // 簡單邊界檢查 (可選)
-        // const boundedY = Math.max(0, newY); 
-        setPosition({ x: newX, y: newY });
+        tempPosition.current = { x: newX, y: newY };
+        if (widgetRef.current) {
+          widgetRef.current.style.left = `${newX}px`;
+          widgetRef.current.style.top = `${newY}px`;
+        }
       }
     };
 
     const handleMouseUp = () => {
       setIsDragging(false);
+      setPosition(tempPosition.current);
     };
 
     const handleTouchMove = (e) => {
@@ -51,12 +55,18 @@ const DraggableWidget = ({
         const touch = e.touches[0];
         const newX = touch.clientX - dragOffset.x;
         const newY = touch.clientY - dragOffset.y;
-        setPosition({ x: newX, y: newY });
+
+        tempPosition.current = { x: newX, y: newY };
+        if (widgetRef.current) {
+          widgetRef.current.style.left = `${newX}px`;
+          widgetRef.current.style.top = `${newY}px`;
+        }
       }
     };
 
     const handleTouchEnd = () => {
       setIsDragging(false);
+      setPosition(tempPosition.current);
     };
 
     if (isDragging) {
@@ -150,7 +160,7 @@ const DraggableWidget = ({
 
       {/* 內容區域 */}
       {!isMinimized && (
-        <div className="p-4 max-h-[80vh] overflow-y-auto overflow-x-hidden custom-scrollbar animate-in fade-in duration-300">
+        <div className={`p-4 max-h-[80vh] overflow-y-auto overflow-x-hidden custom-scrollbar animate-in fade-in duration-300 ${isDragging ? 'pointer-events-none' : ''}`}>
           {children}
         </div>
       )}
